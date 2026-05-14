@@ -8,7 +8,6 @@ import {
   BarChart3,
   Settings,
   Bell,
-  Check,
   ShoppingBag,
   Smartphone,
   Leaf,
@@ -27,6 +26,15 @@ import {
 
 type ScreenProps = {
   onNavigate: (screen: string) => void;
+};
+
+type PillarsScreenProps = ScreenProps & {
+  activePillars: string[];
+  setActivePillars: (p: string[]) => void;
+};
+
+type ReportScreenProps = ScreenProps & {
+  activePillars: string[];
 };
 
 const COLORS = {
@@ -92,6 +100,13 @@ export function LoginScreen({ onNavigate }: ScreenProps) {
   const [senha, setSenha] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shake, setShake] = useState(false);
+
+  const triggerShake = () => {
+    setShake(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setShake(true)));
+    setTimeout(() => setShake(false), 500);
+  };
 
   const formatCpf = (v: string) => {
     const d = v.replace(/\D/g, "").slice(0, 11);
@@ -137,10 +152,12 @@ export function LoginScreen({ onNavigate }: ScreenProps) {
             const digits = cpf.replace(/\D/g, "");
             if (!digits && !senha) {
               setError("Digite um login ou senha válidos");
+              triggerShake();
               return;
             }
             if (digits.length !== 11 || !senha) {
               setError("Login ou senha errados");
+              triggerShake();
               return;
             }
             setError(null);
@@ -182,7 +199,23 @@ export function LoginScreen({ onNavigate }: ScreenProps) {
           </label>
 
           {error && (
-            <p className="text-center text-white">{error}</p>
+            <>
+              <style>{`
+                @keyframes sb-shake {
+                  0%, 100% { transform: translateX(0); }
+                  20% { transform: translateX(-6px); }
+                  40% { transform: translateX(6px); }
+                  60% { transform: translateX(-4px); }
+                  80% { transform: translateX(4px); }
+                }
+              `}</style>
+              <p
+                className="text-center text-white"
+                style={shake ? { animation: "sb-shake 0.45s ease" } : {}}
+              >
+                {error}
+              </p>
+            </>
           )}
 
           <button
@@ -314,8 +347,9 @@ export function WelcomeScreen({ onNavigate }: ScreenProps) {
 }
 
 /* ---------------- Pill Tabs ---------------- */
-function PillarSelect({ active, onChange }: { active: string; onChange: (p: string) => void }) {
+function PillarSelect({ active, onChange, activePillars }: { active: string; onChange: (p: string) => void; activePillars: string[] }) {
   const [open, setOpen] = useState(false);
+  const filtered = PILLARS.filter((p) => activePillars.includes(p.name));
   return (
     <div className="relative w-full">
       <button
@@ -342,7 +376,7 @@ function PillarSelect({ active, onChange }: { active: string; onChange: (p: stri
           className="absolute left-0 right-0 mt-2 z-20 rounded-2xl border border-white/70 p-2 flex flex-col gap-1 bg-white/10"
           style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
         >
-          {PILLARS.map((p) => {
+          {filtered.map((p) => {
             const isActive = active === p.name;
             return (
               <button
@@ -366,22 +400,24 @@ function PillarSelect({ active, onChange }: { active: string; onChange: (p: stri
   );
 }
 
-function PillarTabs({ active, onChange }: { active: string; onChange: (p: string) => void }) {
+function PillarTabs({ active, onChange, activePillars }: { active: string; onChange: (p: string) => void; activePillars: string[] }) {
   return (
     <div className="px-5 pb-4">
-      <PillarSelect active={active} onChange={onChange} />
+      <PillarSelect active={active} onChange={onChange} activePillars={activePillars} />
     </div>
   );
 }
 
 /* ---------------- Pillars Screen ---------------- */
-export function PillarsScreen({ onNavigate }: ScreenProps) {
-  const [selected, setSelected] = useState<string[]>(["Gestão Comercial", "Omni & Digital", "ESG"]);
+export function PillarsScreen({ onNavigate, activePillars, setActivePillars }: PillarsScreenProps) {
+  const [selected, setSelected] = useState<string[]>(activePillars);
 
-  const toggle = (p: string) =>
-    setSelected((s) => (s.includes(p) ? s.filter((x) => x !== p) : [...s, p]));
+  const toggle = (p: string) => {
+    const next = selected.includes(p) ? selected.filter((x) => x !== p) : [...selected, p];
+    setSelected(next);
+    setActivePillars(next);
+  };
 
-  const allSelected = selected.length === PILLARS.length;
 
   return (
     <div
@@ -409,7 +445,8 @@ export function PillarsScreen({ onNavigate }: ScreenProps) {
           <h2 className="text-white">Escolha os pilares</h2>
           <h2 className="text-white">do IAF</h2>
           <p className="text-white/85 mt-2">
-            Selecione um ou mais para receber notificações diárias
+            Selecione um ou mais para receber notificações diárias{" "}
+            <em className="text-white/50 not-italic" style={{ fontStyle: "italic" }}>(por padrão, todos estão ativados).</em>
           </p>
         </div>
 
@@ -421,11 +458,12 @@ export function PillarsScreen({ onNavigate }: ScreenProps) {
             <button
               key={p.name}
               onClick={() => toggle(p.name)}
-              className="w-full rounded-2xl py-3 pl-4 pr-3 flex items-center justify-between border"
+              className="w-full rounded-2xl py-3 pl-4 pr-3 flex items-center justify-between border transition-opacity"
               style={{
                 backgroundColor: active ? "white" : "transparent",
                 color: active ? COLORS.orange : "white",
                 borderColor: active ? "white" : "rgba(255,255,255,0.7)",
+                cursor: "pointer",
               }}
             >
               <span className="flex items-center gap-3">
@@ -436,32 +474,27 @@ export function PillarsScreen({ onNavigate }: ScreenProps) {
                 {p.name}
               </span>
               <span
-                className="w-6 h-6 rounded-full flex items-center justify-center border-2"
+                className="relative inline-flex items-center rounded-full shrink-0 transition-colors"
                 style={{
-                  backgroundColor: active ? COLORS.orange : "transparent",
-                  borderColor: active ? COLORS.orange : "white",
+                  width: "44px",
+                  height: "24px",
+                  backgroundColor: active ? COLORS.orange : "rgba(255,255,255,0.25)",
+                  border: active ? `2px solid ${COLORS.orange}` : "2px solid rgba(255,255,255,0.7)",
                 }}
               >
-                {active && <Check className="w-4 h-4 text-white" />}
+                <span
+                  className="absolute rounded-full bg-white transition-transform"
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    transform: active ? "translateX(22px)" : "translateX(2px)",
+                  }}
+                />
               </span>
             </button>
           );
         })}
 
-        <button
-          onClick={() => setSelected(allSelected ? [] : PILLARS.map((p) => p.name))}
-          className="w-full rounded-2xl py-3 mt-2 border border-white/70 text-white"
-        >
-          {allSelected ? "Limpar seleção" : "Selecionar todos"}
-        </button>
-
-        <button
-          onClick={() => onNavigate("welcome")}
-          className="w-full rounded-2xl py-4 bg-white mb-2"
-          style={{ color: COLORS.orange }}
-        >
-          Salvar escolhas
-        </button>
         </div>
       </div>
 
@@ -480,8 +513,8 @@ const KPI = [
   { idx: "1.6", icon: Gift, label: "Resgate Fidelidade (%)", real: "52,82%", meta: "52,00%", pct: 101.58, points: "20,00 pts / 20,00 pts" },
 ];
 
-export function ReportScreen({ onNavigate }: ScreenProps) {
-  const [activePillar, setActivePillar] = useState("Gestão Comercial");
+export function ReportScreen({ onNavigate, activePillars }: ReportScreenProps) {
+  const [activePillar, setActivePillar] = useState(activePillars[0] ?? "Gestão Comercial");
 
   return (
     <div
@@ -509,7 +542,7 @@ export function ReportScreen({ onNavigate }: ScreenProps) {
       </div>
 
       <div className="pt-3">
-        <PillarTabs active={activePillar} onChange={setActivePillar} />
+        <PillarTabs active={activePillar} onChange={setActivePillar} activePillars={activePillars} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-2 pb-3">
