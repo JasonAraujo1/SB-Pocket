@@ -239,12 +239,16 @@ const STATUS_ICON: Record<string, any> = {
 };
 
 const HOME_RESULTS = [
-  { pillar: "Finanças", status: "Distanciou", color: COLORS.wine, text: "Resultado alcançado se distanciou da meta" },
-  { pillar: "Omni & Digital", status: "Aproximou", color: COLORS.teal, text: "Resultado alcançado se aproximou da meta" },
-  { pillar: "Excelência Operacional", status: "Manteve", color: COLORS.orange, text: "Resultado alcançado manteve-se estável" },
+  { pillar: "Gestão Comercial", status: "Aproximou", text: "Resultado alcançado se aproximou da meta" },
+  { pillar: "Omni & Digital", status: "Aproximou", text: "Resultado alcançado se aproximou da meta" },
+  { pillar: "ESG", status: "Manteve", text: "Resultado alcançado manteve-se estável" },
+  { pillar: "Excelência Operacional", status: "Manteve", text: "Resultado alcançado manteve-se estável" },
+  { pillar: "Gestão de Pessoas", status: "Distanciou", text: "Resultado alcançado se distanciou da meta" },
+  { pillar: "Finanças", status: "Distanciou", text: "Resultado alcançado se distanciou da meta" },
 ];
 
-export function WelcomeScreen({ onNavigate }: ScreenProps) {
+export function WelcomeScreen({ onNavigate, activePillars }: ScreenProps & { activePillars: string[] }) {
+  const visibleResults = HOME_RESULTS.filter((r) => activePillars.includes(r.pillar));
   return (
     <div
       className="w-full h-full flex flex-col text-white"
@@ -298,7 +302,7 @@ export function WelcomeScreen({ onNavigate }: ScreenProps) {
         </div>
 
         <div className="px-5 flex flex-col gap-3 pb-4">
-        {HOME_RESULTS.map((r) => {
+        {visibleResults.map((r) => {
           const Icon = STATUS_ICON[r.status];
           const bgColor =
             r.status === "Distanciou"

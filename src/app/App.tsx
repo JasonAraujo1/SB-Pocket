@@ -22,7 +22,7 @@ export default function App() {
       case "report":
         return <ReportScreen onNavigate={setScreen} activePillars={activePillars} />;
       case "welcome":
-        return <WelcomeScreen onNavigate={setScreen} />;
+        return <WelcomeScreen onNavigate={setScreen} activePillars={activePillars} />;
       default:
         return <SplashScreen onNavigate={setScreen} />;
     }
