@@ -22,6 +22,9 @@ import {
   Star,
   Gift,
   Activity,
+  Eye,
+  EyeOff,
+  LogOut,
 } from "lucide-react";
 
 type ScreenProps = {
@@ -201,9 +204,9 @@ export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
               <button
                 type="button"
                 onClick={() => setShowPwd((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/80"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white"
               >
-                {showPwd ? "Ocultar" : "Mostrar"}
+                {showPwd ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </label>
@@ -259,7 +262,7 @@ const HOME_RESULTS = [
 ];
 
 // preferredPillars: preferência visual do usuário para o resumo da Home — não limita acesso a dados
-export function WelcomeScreen({ onNavigate, preferredPillars }: ScreenProps & { preferredPillars: string[] }) {
+export function WelcomeScreen({ onNavigate, preferredPillars, onLogout }: ScreenProps & { preferredPillars: string[]; onLogout: () => void }) {
   const visibleResults = HOME_RESULTS.filter((r) => preferredPillars.includes(r.pillar));
   return (
     <div
@@ -273,11 +276,15 @@ export function WelcomeScreen({ onNavigate, preferredPillars }: ScreenProps & { 
 
       <div className="flex-1 overflow-y-auto flex flex-col">
         <div className="px-6 pt-4 pb-2">
-          <img
-            src={sbLogo}
-            alt="SB"
-            className="w-12 h-12 rounded-xl mb-3"
-          />
+          <div className="flex items-center justify-between mb-3">
+            <img src={sbLogo} alt="SB" className="w-12 h-12 rounded-xl" />
+            <button
+              onClick={onLogout}
+              className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
+            >
+              <LogOut className="w-4 h-4 text-white" />
+            </button>
+          </div>
           <h1 className="text-white">Atualizações IAF</h1>
           <p className="text-white/85 mt-2">Bom dia! Veja os resultados de hoje</p>
         </div>

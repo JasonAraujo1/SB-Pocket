@@ -63,6 +63,12 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setPreferredPillars(DEFAULT_PILLARS);
+    setScreen("splash");
+  };
+
   const renderScreen = () => {
     switch (screen) {
       case "login":
@@ -72,7 +78,7 @@ export default function App() {
       case "report":
         return <ReportScreen onNavigate={setScreen} />;
       case "welcome":
-        return <WelcomeScreen onNavigate={setScreen} preferredPillars={preferredPillars} />;
+        return <WelcomeScreen onNavigate={setScreen} preferredPillars={preferredPillars} onLogout={handleLogout} />;
       default:
         return <SplashScreen onNavigate={setScreen} />;
     }
