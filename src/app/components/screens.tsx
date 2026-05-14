@@ -1,7 +1,6 @@
 import { useState } from "react";
-import sbLogo from "../../imports/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px_.png";
-import sbLogoSplash from "../../imports/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px___4_.png";
-import bellIcon from "../../imports/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px___5_.png";
+import sbLogo from "../../assets/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px_.png";
+import imagePhoneIAF from "../../assets/imagePhoneIAF.gif";
 import {
   ChevronLeft,
   ChevronRight,
@@ -9,9 +8,7 @@ import {
   BarChart3,
   Settings,
   Bell,
-  User,
   Check,
-  Bookmark,
   ShoppingBag,
   Smartphone,
   Leaf,
@@ -19,7 +16,6 @@ import {
   Users,
   DollarSign,
   Calendar,
-  Clock,
   TrendingUp,
   TrendingDown,
   RefreshCw,
@@ -27,7 +23,6 @@ import {
   Star,
   Gift,
   Activity,
-  X,
 } from "lucide-react";
 
 type ScreenProps = {
@@ -72,7 +67,7 @@ export function SplashScreen({ onNavigate }: ScreenProps) {
       <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 px-6">
         <h1 className="text-white mx-[0px] mt-[0px] mb-[-20px]" style={{ fontSize: "40px" }}>SB Pocket</h1>
         <p className="text-white/85">by Setor de TI</p>
-        <img src={bellIcon} alt="" className="h-72 w-auto object-contain mt-2" />
+        <img src={imagePhoneIAF} alt="" className="h-72 w-auto object-contain mt-2" />
       </div>
 
       <div className="w-full flex flex-col items-center gap-3 px-8 pb-10">
