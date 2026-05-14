@@ -28,14 +28,17 @@ type ScreenProps = {
   onNavigate: (screen: string) => void;
 };
 
-type PillarsScreenProps = ScreenProps & {
-  activePillars: string[];
-  setActivePillars: (p: string[]) => void;
+type LoginScreenProps = ScreenProps & {
+  onLogin: (cpf: string, password: string) => Promise<string | null>;
 };
 
-type ReportScreenProps = ScreenProps & {
-  activePillars: string[];
+type PillarsScreenProps = ScreenProps & {
+  // preferredPillars: preferência visual — não é permissão de acesso
+  preferredPillars: string[];
+  setPreferredPillars: (p: string[]) => void;
 };
+
+type ReportScreenProps = ScreenProps;
 
 const COLORS = {
   teal: "#048187",
@@ -95,12 +98,13 @@ export function SplashScreen({ onNavigate }: ScreenProps) {
 }
 
 /* ---------------- Login ---------------- */
-export function LoginScreen({ onNavigate }: ScreenProps) {
+export function LoginScreen({ onNavigate, onLogin }: LoginScreenProps) {
   const [cpf, setCpf] = useState("");
   const [senha, setSenha] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const triggerShake = () => {
     setShake(false);
@@ -147,21 +151,27 @@ export function LoginScreen({ onNavigate }: ScreenProps) {
         </div>
 
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
             const digits = cpf.replace(/\D/g, "");
-            if (!digits && !senha) {
-              setError("Digite um login ou senha válidos");
+            if (!digits) {
+              setError("Digite seu CPF");
               triggerShake();
               return;
             }
-            if (digits.length !== 11 || !senha) {
-              setError("Login ou senha errados");
+            if (!senha) {
+              setError("Digite sua senha");
               triggerShake();
               return;
             }
+            setLoading(true);
             setError(null);
-            onNavigate("pillars");
+            const errorMsg = await onLogin(digits, senha);
+            setLoading(false);
+            if (errorMsg) {
+              setError(errorMsg);
+              triggerShake();
+            }
           }}
           className="mt-8 flex flex-col gap-4"
         >
@@ -220,10 +230,11 @@ export function LoginScreen({ onNavigate }: ScreenProps) {
 
           <button
             type="submit"
-            className="w-full rounded-full bg-white py-4 mt-2"
+            disabled={loading}
+            className="w-full rounded-full bg-white py-4 mt-2 disabled:opacity-60"
             style={{ color: COLORS.teal }}
           >
-            Entrar
+            {loading ? "Verificando..." : "Entrar"}
           </button>
         </form>
       </div>
@@ -247,8 +258,9 @@ const HOME_RESULTS = [
   { pillar: "Finanças", status: "Distanciou", text: "Resultado alcançado se distanciou da meta" },
 ];
 
-export function WelcomeScreen({ onNavigate, activePillars }: ScreenProps & { activePillars: string[] }) {
-  const visibleResults = HOME_RESULTS.filter((r) => activePillars.includes(r.pillar));
+// preferredPillars: preferência visual do usuário para o resumo da Home — não limita acesso a dados
+export function WelcomeScreen({ onNavigate, preferredPillars }: ScreenProps & { preferredPillars: string[] }) {
+  const visibleResults = HOME_RESULTS.filter((r) => preferredPillars.includes(r.pillar));
   return (
     <div
       className="w-full h-full flex flex-col text-white"
@@ -351,9 +363,9 @@ export function WelcomeScreen({ onNavigate, activePillars }: ScreenProps & { act
 }
 
 /* ---------------- Pill Tabs ---------------- */
-function PillarSelect({ active, onChange, activePillars }: { active: string; onChange: (p: string) => void; activePillars: string[] }) {
+// PillarSelect: exibe todos os pilares disponíveis — sem filtro por preferência
+function PillarSelect({ active, onChange }: { active: string; onChange: (p: string) => void }) {
   const [open, setOpen] = useState(false);
-  const filtered = PILLARS.filter((p) => activePillars.includes(p.name));
   return (
     <div className="relative w-full">
       <button
@@ -380,7 +392,7 @@ function PillarSelect({ active, onChange, activePillars }: { active: string; onC
           className="absolute left-0 right-0 mt-2 z-20 rounded-2xl border border-white/70 p-2 flex flex-col gap-1 bg-white/10"
           style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
         >
-          {filtered.map((p) => {
+          {PILLARS.map((p) => {
             const isActive = active === p.name;
             return (
               <button
@@ -404,22 +416,22 @@ function PillarSelect({ active, onChange, activePillars }: { active: string; onC
   );
 }
 
-function PillarTabs({ active, onChange, activePillars }: { active: string; onChange: (p: string) => void; activePillars: string[] }) {
+function PillarTabs({ active, onChange }: { active: string; onChange: (p: string) => void }) {
   return (
     <div className="px-5 pb-4">
-      <PillarSelect active={active} onChange={onChange} activePillars={activePillars} />
+      <PillarSelect active={active} onChange={onChange} />
     </div>
   );
 }
 
 /* ---------------- Pillars Screen ---------------- */
-export function PillarsScreen({ onNavigate, activePillars, setActivePillars }: PillarsScreenProps) {
-  const [selected, setSelected] = useState<string[]>(activePillars);
+export function PillarsScreen({ onNavigate, preferredPillars, setPreferredPillars }: PillarsScreenProps) {
+  const [selected, setSelected] = useState<string[]>(preferredPillars);
 
   const toggle = (p: string) => {
     const next = selected.includes(p) ? selected.filter((x) => x !== p) : [...selected, p];
     setSelected(next);
-    setActivePillars(next);
+    setPreferredPillars(next);
   };
 
 
@@ -517,8 +529,9 @@ const KPI = [
   { idx: "1.6", icon: Gift, label: "Resgate Fidelidade (%)", real: "52,82%", meta: "52,00%", pct: 101.58, points: "20,00 pts / 20,00 pts" },
 ];
 
-export function ReportScreen({ onNavigate, activePillars }: ReportScreenProps) {
-  const [activePillar, setActivePillar] = useState(activePillars[0] ?? "Gestão Comercial");
+// ReportScreen: exibe relatório completo com todos os pilares — preferredPillars não se aplica aqui
+export function ReportScreen({ onNavigate }: ReportScreenProps) {
+  const [activePillar, setActivePillar] = useState(PILLARS[0].name);
 
   return (
     <div
@@ -546,7 +559,7 @@ export function ReportScreen({ onNavigate, activePillars }: ReportScreenProps) {
       </div>
 
       <div className="pt-3">
-        <PillarTabs active={activePillar} onChange={setActivePillar} activePillars={activePillars} />
+        <PillarTabs active={activePillar} onChange={setActivePillar} />
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-2 pb-3">
