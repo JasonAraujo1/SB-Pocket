@@ -73,7 +73,7 @@ export function SplashScreen({ onNavigate }: ScreenProps) {
           <img src={sbLogo} alt="" className="w-7 h-7 rounded" />
           <div className="flex flex-col leading-tight">
             <span className="text-white/70 tracking-wider" style={{ fontSize: "9px" }}>GRUPO</span>
-            <span className="text-white">monteiro</span>
+            <span className="text-white/70">SB monteiro</span>
           </div>
         </div>
       </div>
