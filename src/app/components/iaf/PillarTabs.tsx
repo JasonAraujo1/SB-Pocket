@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { PILLARS } from "../../constants/pillars";
 
 type Props = {
   active: string;
   onChange: (pillar: string) => void;
+  pillars: string[];
 };
 
-export function PillarTabs({ active, onChange }: Props) {
+export function PillarTabs({ active, onChange, pillars }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,14 +37,14 @@ export function PillarTabs({ active, onChange }: Props) {
             className="absolute left-0 right-0 mt-2 z-20 rounded-2xl border border-white/70 p-2 flex flex-col gap-1 bg-white/10"
             style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
           >
-            {PILLARS.map((p) => (
+            {pillars.map((name) => (
               <button
-                key={p.key}
-                onClick={() => { onChange(p.name); setOpen(false); }}
+                key={name}
+                onClick={() => { onChange(name); setOpen(false); }}
                 className="w-full rounded-xl px-4 py-2 text-left text-white transition-colors"
-                style={{ backgroundColor: active === p.name ? "rgba(255,255,255,0.25)" : "transparent" }}
+                style={{ backgroundColor: active === name ? "rgba(255,255,255,0.25)" : "transparent" }}
               >
-                {p.name}
+                {name}
               </button>
             ))}
           </div>

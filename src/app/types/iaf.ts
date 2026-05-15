@@ -1,16 +1,49 @@
-export type IafReport = {
-  date: string;
-  source: string;
-  createdAt?: string;
-  pillarsSummary?: Record<string, unknown>;
-  indicators?: unknown[];
+export type PillarKey =
+  | "gestao_comercial"
+  | "omni_digital"
+  | "esg"
+  | "excelencia_operacional"
+  | "gestao_pessoas"
+  | "financas";
+
+export type IafMetric = {
+  tipo: string;
+  raw: number | string | null;
+  formatado: string;
 };
 
 export type IafIndicator = {
-  idx: string;
-  label: string;
-  real: string;
-  meta: string;
-  pct: number;
-  points: string;
+  code: string;
+  title: string;
+  pillar: string;
+  indicador?: string;
+  link?: string;
+  habilitador?: string;
+  realizado: IafMetric;
+  pontosAtingidos: IafMetric;
+  percentualAtingido: IafMetric;
+  metaPontos: IafMetric;
+  metaValor: IafMetric;
+  faltaMetaPontos: IafMetric;
+  faltaMetaPercentual: IafMetric;
+};
+
+export type IafPillarSummary = {
+  status: "pending_comparison" | "up" | "down" | "stable";
+  averagePercentual?: number | null;
+  message?: string;
+};
+
+type FirestoreTimestamp = { toDate(): Date; seconds: number };
+
+export type IafReport = {
+  id: string;
+  date: string;
+  source?: string;
+  page?: string;
+  endpoint?: string;
+  createdAt?: string | FirestoreTimestamp;
+  executedAt?: string | FirestoreTimestamp;
+  indicators: IafIndicator[];
+  pillarsSummary: Record<string, IafPillarSummary>;
 };
