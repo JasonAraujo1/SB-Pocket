@@ -16,6 +16,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useIafReport } from "../hooks/useIafReport";
 import { ScreenContainer } from "../components/common/ScreenContainer";
 import { BottomNav } from "../components/common/BottomNav";
+import { PageLoader } from "../components/common/PageLoader";
 import { PILLARS, PILLAR_KEY_MAP } from "../constants/pillars";
 import { formatDate, formatTime } from "../utils/date";
 import type { IafPillarSummary } from "../types/iaf";
@@ -82,6 +83,7 @@ export function HomePage() {
             <button
               onClick={handleLogout}
               className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
+              style={{ backgroundColor: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
             >
               <LogOut className="w-4 h-4 text-white" />
             </button>
@@ -121,7 +123,7 @@ export function HomePage() {
               <button
                 onClick={refetch}
                 className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center shrink-0"
-                style={{ background: "transparent" }}
+                style={{ backgroundColor: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
                 aria-label="Atualizar dados"
               >
                 <RefreshCw
@@ -159,22 +161,7 @@ export function HomePage() {
         </div>
 
         <div className="px-5 flex flex-col gap-3 pb-4">
-          {/* Loading */}
-          {loading && (
-            <div className="flex justify-center py-6">
-              <style>{`@keyframes sb-spin{to{transform:rotate(360deg)}}`}</style>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  border: "3px solid rgba(255,255,255,0.25)",
-                  borderTopColor: "rgba(255,255,255,0.9)",
-                  animation: "sb-spin 0.75s linear infinite",
-                }}
-              />
-            </div>
-          )}
+          {loading && <PageLoader />}
 
           {/* Error */}
           {!loading && error && (

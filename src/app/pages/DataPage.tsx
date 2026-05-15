@@ -4,6 +4,7 @@ import { ChevronLeft, Calendar } from "lucide-react";
 import { COLORS } from "../constants/colors";
 import { ROUTES } from "../routes/routes";
 import { BottomNav } from "../components/common/BottomNav";
+import { PageLoader } from "../components/common/PageLoader";
 import { PillarTabs } from "../components/iaf/PillarTabs";
 import { IafIndicatorCard } from "../components/iaf/IafIndicatorCard";
 import { PILLARS, PILLAR_DISPLAY_TO_KEY } from "../constants/pillars";
@@ -30,7 +31,7 @@ export function DataPage() {
 
   return (
     <div
-      className="w-full h-full flex flex-col text-white"
+      className="relative w-full h-full flex flex-col text-white"
       style={{
         backgroundColor: COLORS.wine,
         backgroundImage: "linear-gradient(to right, rgba(0,0,0,0.12), rgba(0,0,0,0) 45%)",
@@ -43,6 +44,7 @@ export function DataPage() {
         <button
           onClick={() => navigate(ROUTES.home)}
           className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center shrink-0"
+          style={{ backgroundColor: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
         >
           <ChevronLeft className="w-5 h-5 text-white" />
         </button>
@@ -62,22 +64,7 @@ export function DataPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 flex flex-col gap-2 pb-3">
-        {/* Loading */}
-        {loading && (
-          <div className="flex justify-center py-10">
-            <style>{`@keyframes sb-spin{to{transform:rotate(360deg)}}`}</style>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                border: "3px solid rgba(255,255,255,0.25)",
-                borderTopColor: "rgba(255,255,255,0.9)",
-                animation: "sb-spin 0.75s linear infinite",
-              }}
-            />
-          </div>
-        )}
+        {loading && <PageLoader />}
 
         {/* Error */}
         {!loading && error && (

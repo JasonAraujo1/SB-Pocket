@@ -86,7 +86,12 @@ export function ConfigPage() {
               ref={editBtnRef}
               onClick={handleEdit}
               className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
-              style={editShake ? { animation: "sb-edit-shake 0.4s ease" } : {}}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                ...(editShake ? { animation: "sb-edit-shake 0.4s ease" } : {}),
+              }}
               aria-label="Editar pilares"
             >
               <Pencil className="w-4 h-4 text-white" />
