@@ -39,3 +39,4 @@ Por ser uma PWA, o app pode ser instalado diretamente pelo navegador (Chrome/Edg
 ---
 
 # N8N versão estáve:  "1 teste sbpocket" - May 15, 11:02:22
+# N8N versão estáve: " Versão adicção de cpf" - May 15, 16:35:21

@@ -1,4 +1,4 @@
-import { getLatestIafReport, getReportByDate } from "./firestore";
+import { getLatestTwoIafReports, getReportByDate } from "./firestore";
 import type { IafReport, IafIndicator, IafPillarSummary } from "../app/types/iaf";
 
 function metricNum(raw: number | string | null | undefined): number | null {
@@ -10,11 +10,8 @@ function metricNum(raw: number | string | null | undefined): number | null {
   return null;
 }
 
-function buildPillarsSummary(
-  indicators: IafIndicator[]
-): Record<string, IafPillarSummary> {
+function avgByPillar(indicators: IafIndicator[]): Record<string, number> {
   const groups: Record<string, number[]> = {};
-
   for (const ind of indicators) {
     const key = ind.pillar;
     if (!key) continue;
@@ -22,46 +19,81 @@ function buildPillarsSummary(
     if (pct === null) continue;
     groups[key] = [...(groups[key] ?? []), pct];
   }
+  return Object.fromEntries(
+    Object.entries(groups).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length])
+  );
+}
 
+function buildPillarsSummary(
+  current: IafIndicator[],
+  previous: IafIndicator[] | null
+): Record<string, IafPillarSummary> {
+  const currentAvgs = avgByPillar(current);
+  const previousAvgs = previous ? avgByPillar(previous) : null;
   const summary: Record<string, IafPillarSummary> = {};
-  for (const [key, values] of Object.entries(groups)) {
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    const status: IafPillarSummary["status"] =
-      avg >= 100 ? "up" : avg >= 80 ? "stable" : "down";
-    summary[key] = { status, averagePercentual: parseFloat(avg.toFixed(1)) };
+
+  // Pilares com dados numéricos
+  for (const [key, currentAvg] of Object.entries(currentAvgs)) {
+    const prevAvg = previousAvgs?.[key] ?? null;
+
+    if (prevAvg === null) {
+      summary[key] = {
+        status: "pending_comparison",
+        averagePercentual: parseFloat(currentAvg.toFixed(1)),
+        message: "Sem relatório anterior para comparação",
+      };
+    } else {
+      const diff = currentAvg - prevAvg;
+      const status: IafPillarSummary["status"] =
+        diff > 1 ? "up" : diff < -1 ? "down" : "stable";
+      summary[key] = {
+        status,
+        averagePercentual: parseFloat(currentAvg.toFixed(1)),
+      };
+    }
   }
 
-  // Pilares sem nenhum percentual ficam como pending
-  for (const ind of indicators) {
+  // Pilares sem percentual ficam como pending
+  for (const ind of current) {
     if (ind.pillar && !(ind.pillar in summary)) {
-      summary[ind.pillar] = { status: "pending_comparison" };
+      summary[ind.pillar] = {
+        status: "pending_comparison",
+        message: "Sem relatório anterior para comparação",
+      };
     }
   }
 
   return summary;
 }
 
-function normalizeReport(raw: IafReport): IafReport {
+function normalizeReport(
+  raw: IafReport,
+  previousRaw: IafReport | null
+): IafReport {
   const indicators = Array.isArray(raw.indicators) ? raw.indicators : [];
+  const previousIndicators =
+    previousRaw && Array.isArray(previousRaw.indicators)
+      ? previousRaw.indicators
+      : null;
+
+  // Prefere pillarsSummary já calculado pelo Firebase; constrói se ausente ou vazio
   const pillarsSummary =
     raw.pillarsSummary && Object.keys(raw.pillarsSummary).length > 0
       ? raw.pillarsSummary
-      : buildPillarsSummary(indicators);
+      : buildPillarsSummary(indicators, previousIndicators);
 
-  // Garante que date existe; usa o id do documento como fallback
   const date = raw.date ?? raw.id;
-
   return { ...raw, date, indicators, pillarsSummary };
 }
 
 export async function fetchLatestReport(): Promise<IafReport | null> {
-  const raw = await getLatestIafReport();
-  if (!raw) return null;
-  return normalizeReport(raw);
+  const result = await getLatestTwoIafReports();
+  if (!result) return null;
+  return normalizeReport(result.current, result.previous);
 }
 
 export async function fetchReportByDate(date: string): Promise<IafReport | null> {
   const raw = await getReportByDate(date);
   if (!raw) return null;
-  return normalizeReport(raw);
+  return normalizeReport(raw, null);
 }

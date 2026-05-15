@@ -21,6 +21,16 @@ import { PILLARS, PILLAR_KEY_MAP } from "../constants/pillars";
 import { formatReportTime } from "../utils/date";
 import type { IafPillarSummary } from "../types/iaf";
 
+function getFirstName(name?: string): string {
+  if (!name) return "";
+  const first = name.trim().split(/\s+/)[0];
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+
+const SHORT_NAMES: Record<string, string> = {
+  "Excelência Operacional": "Excelência Op.",
+};
+
 const STATUS_CONFIG = {
   up: {
     Icon: TrendingUp,
@@ -56,7 +66,8 @@ function getPillarCard(key: string, summary: IafPillarSummary) {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { preferredPillars, logout } = useAuth();
+  const { preferredPillars, logout, currentUser } = useAuth();
+  const firstName = getFirstName(currentUser?.name);
   const { report, loading, error, refetch } = useIafReport();
 
   const handleLogout = () => {
@@ -89,7 +100,9 @@ export function HomePage() {
             </button>
           </div>
           <h1 className="text-white">Atualizações IAF</h1>
-          <p className="text-white/85 mt-2">Bom dia! Veja os resultados de hoje</p>
+          <p className="text-white/85 mt-2">
+            {firstName ? `Olá, ${firstName}! Veja os resultados de hoje` : "Olá! Veja os resultados de hoje"}
+          </p>
         </div>
 
         {/* Update card */}
@@ -198,7 +211,7 @@ export function HomePage() {
                   </div>
                   <div className="flex-1 text-left flex flex-col gap-1">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-base font-medium text-white">{c.name}</span>
+                      <span className="text-base font-medium text-white">{SHORT_NAMES[c.name] ?? c.name}</span>
                       {c.pct && (
                         <span className="text-xs text-white/70">{c.pct}</span>
                       )}
