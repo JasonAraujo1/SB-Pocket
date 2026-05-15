@@ -37,3 +37,5 @@ npm run dev
 Por ser uma PWA, o app pode ser instalado diretamente pelo navegador (Chrome/Edge → "Adicionar à tela inicial").
 
 ---
+
+# N8N versão estáve:  "1 teste sbpocket" - May 15, 11:02:22
