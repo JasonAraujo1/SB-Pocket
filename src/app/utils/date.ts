@@ -28,3 +28,17 @@ export function formatTime(value: unknown): string {
   if (!d) return "—";
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
+
+// Usa os campos pré-formatados do Firebase; converte YYYY-MM-DD ou id como fallback
+export function formatReportDate(report: { id: string; reportDateBr?: string; reportDate?: string; date?: string }): string {
+  if (report.reportDateBr) return report.reportDateBr;
+  const raw = report.reportDate ?? report.date ?? report.id;
+  if (!raw) return "—";
+  const parts = String(raw).split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return String(raw);
+}
+
+export function formatReportTime(report: { executedAtBr?: string; createdAtBr?: string; debugUpdatedAtBr?: string }): string {
+  return report.executedAtBr ?? report.createdAtBr ?? report.debugUpdatedAtBr ?? "—";
+}

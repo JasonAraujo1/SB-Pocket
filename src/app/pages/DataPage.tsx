@@ -10,7 +10,7 @@ import { IafIndicatorCard } from "../components/iaf/IafIndicatorCard";
 import { PILLARS, PILLAR_DISPLAY_TO_KEY } from "../constants/pillars";
 import { useIafReport } from "../hooks/useIafReport";
 import { useAuth } from "../hooks/useAuth";
-import { formatDate } from "../utils/date";
+import { formatReportDate } from "../utils/date";
 
 export function DataPage() {
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ export function DataPage() {
           <h2 className="text-white">IAF · Relatório diário</h2>
           <p className="text-white/80 mt-0.5 flex items-center justify-center gap-1">
             <Calendar className="w-3.5 h-3.5" />
-            {report ? formatDate(report.date) : loading ? "Carregando..." : "—"}
+            {report ? formatReportDate(report) : loading ? "Carregando..." : "—"}
           </p>
         </div>
       </div>

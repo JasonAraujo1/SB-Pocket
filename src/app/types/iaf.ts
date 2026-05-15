@@ -38,7 +38,14 @@ type FirestoreTimestamp = { toDate(): Date; seconds: number };
 
 export type IafReport = {
   id: string;
-  date: string;
+  date?: string;
+  // campos de data/hora já formatados pelo n8n (preferência de exibição)
+  reportDate?: string;
+  reportDateBr?: string;
+  createdAtBr?: string;
+  executedAtBr?: string;
+  debugUpdatedAtBr?: string;
+  debugRunId?: string;
   source?: string;
   page?: string;
   endpoint?: string;

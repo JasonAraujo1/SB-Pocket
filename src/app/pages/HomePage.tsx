@@ -18,7 +18,7 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { BottomNav } from "../components/common/BottomNav";
 import { PageLoader } from "../components/common/PageLoader";
 import { PILLARS, PILLAR_KEY_MAP } from "../constants/pillars";
-import { formatDate, formatTime } from "../utils/date";
+import { formatReportTime } from "../utils/date";
 import type { IafPillarSummary } from "../types/iaf";
 
 const STATUS_CONFIG = {
@@ -137,14 +137,9 @@ export function HomePage() {
               </button>
               <div className="flex-1 flex flex-col">
                 {report ? (
-                  <>
-                    <span className="text-white">
-                      Data atualização · {formatDate(report.date)}
-                    </span>
-                    <span className="text-white/75">
-                      Hora atualização · {formatTime(report.createdAt ?? report.executedAt)}
-                    </span>
-                  </>
+                  <span className="text-white/55">
+                    Atualizado · {formatReportTime(report)}
+                  </span>
                 ) : (
                   <span className="text-white/70">
                     {loading ? "Carregando..." : "Sem dados de atualização"}

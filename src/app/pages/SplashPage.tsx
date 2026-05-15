@@ -40,7 +40,7 @@ export function SplashPage() {
           Começar
         </button>
         <p className="text-white/70 text-center max-w-[220px]">
-          Informações relevantes sempre com você
+          Vamos viver o IAF
         </p>
       </div>
     </div>
