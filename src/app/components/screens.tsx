@@ -25,6 +25,7 @@ import {
   Eye,
   EyeOff,
   LogOut,
+  Pencil,
 } from "lucide-react";
 
 type ScreenProps = {
@@ -38,7 +39,8 @@ type LoginScreenProps = ScreenProps & {
 type PillarsScreenProps = ScreenProps & {
   // preferredPillars: preferência visual — não é permissão de acesso
   preferredPillars: string[];
-  setPreferredPillars: (p: string[]) => void;
+  currentUser: { cpf: string } | null;
+  onSavePillars: (displayNames: string[]) => Promise<void>;
 };
 
 type ReportScreenProps = ScreenProps;
@@ -432,15 +434,36 @@ function PillarTabs({ active, onChange }: { active: string; onChange: (p: string
 }
 
 /* ---------------- Pillars Screen ---------------- */
-export function PillarsScreen({ onNavigate, preferredPillars, setPreferredPillars }: PillarsScreenProps) {
+export function PillarsScreen({ onNavigate, preferredPillars, currentUser, onSavePillars }: PillarsScreenProps) {
   const [selected, setSelected] = useState<string[]>(preferredPillars);
+  const [editMode, setEditMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<"success" | "error" | null>(null);
 
   const toggle = (p: string) => {
-    const next = selected.includes(p) ? selected.filter((x) => x !== p) : [...selected, p];
-    setSelected(next);
-    setPreferredPillars(next);
+    if (!editMode) return;
+    setSelected((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]);
   };
 
+  const handleEdit = () => {
+    setEditMode(true);
+    setMessage(null);
+  };
+
+  const handleSave = async () => {
+    if (!currentUser) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      await onSavePillars(selected);
+      setMessage("success");
+      setEditMode(false);
+    } catch {
+      setMessage("error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
@@ -459,65 +482,94 @@ export function PillarsScreen({ onNavigate, preferredPillars, setPreferredPillar
           >
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
-          <div className="flex-1 text-center pr-9">
+          <div className="flex-1 text-center">
             <p className="text-white">Configuração</p>
           </div>
+          {!editMode ? (
+            <button
+              onClick={handleEdit}
+              className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
+            >
+              <Pencil className="w-4 h-4 text-white" />
+            </button>
+          ) : (
+            <div className="w-9 h-9" />
+          )}
         </div>
 
         <div className="px-6 pb-5">
-          <h2 className="text-white">Escolha os pilares</h2>
-          <h2 className="text-white">do IAF</h2>
+          <h2 className="text-white">Escolha os pilares do IAF</h2>
           <p className="text-white/85 mt-2">
-            Selecione um ou mais para receber notificações diárias{" "}
-            <em className="text-white/50 not-italic" style={{ fontStyle: "italic" }}>(por padrão, todos estão ativados).</em>
+            Selecione os pilares que deseja visualizar em destaque no app
           </p>
         </div>
 
         <div className="px-5 flex flex-col gap-3 pb-4">
-        {PILLARS.map((p) => {
-          const active = selected.includes(p.name);
-          const Icon = p.icon;
-          return (
-            <button
-              key={p.name}
-              onClick={() => toggle(p.name)}
-              className="w-full rounded-2xl py-3 pl-4 pr-3 flex items-center justify-between border transition-opacity"
-              style={{
-                backgroundColor: active ? "white" : "transparent",
-                color: active ? COLORS.orange : "white",
-                borderColor: active ? "white" : "rgba(255,255,255,0.7)",
-                cursor: "pointer",
-              }}
-            >
-              <span className="flex items-center gap-3">
-                <Icon
-                  className="w-5 h-5"
-                  style={{ color: active ? COLORS.orange : "white" }}
-                />
-                {p.name}
-              </span>
-              <span
-                className="relative inline-flex items-center rounded-full shrink-0 transition-colors"
+          {PILLARS.map((p) => {
+            const active = selected.includes(p.name);
+            const Icon = p.icon;
+            return (
+              <button
+                key={p.name}
+                onClick={() => toggle(p.name)}
+                disabled={!editMode}
+                className="w-full rounded-2xl py-3 pl-4 pr-3 flex items-center justify-between border transition-opacity"
                 style={{
-                  width: "44px",
-                  height: "24px",
-                  backgroundColor: active ? COLORS.orange : "rgba(255,255,255,0.25)",
-                  border: active ? `2px solid ${COLORS.orange}` : "2px solid rgba(255,255,255,0.7)",
+                  backgroundColor: active ? "white" : "transparent",
+                  color: active ? COLORS.orange : "white",
+                  borderColor: active ? "white" : "rgba(255,255,255,0.7)",
+                  cursor: editMode ? "pointer" : "default",
+                  opacity: editMode ? 1 : 0.85,
                 }}
               >
+                <span className="flex items-center gap-3">
+                  <Icon
+                    className="w-5 h-5"
+                    style={{ color: active ? COLORS.orange : "white" }}
+                  />
+                  {p.name}
+                </span>
                 <span
-                  className="absolute rounded-full bg-white transition-transform"
+                  className="relative inline-flex items-center rounded-full shrink-0 transition-colors"
                   style={{
-                    width: "16px",
-                    height: "16px",
-                    transform: active ? "translateX(22px)" : "translateX(2px)",
+                    width: "44px",
+                    height: "24px",
+                    backgroundColor: active ? COLORS.orange : "rgba(255,255,255,0.25)",
+                    border: active ? `2px solid ${COLORS.orange}` : "2px solid rgba(255,255,255,0.7)",
                   }}
-                />
-              </span>
-            </button>
-          );
-        })}
+                >
+                  <span
+                    className="absolute rounded-full bg-white transition-transform"
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      transform: active ? "translateX(22px)" : "translateX(2px)",
+                    }}
+                  />
+                </span>
+              </button>
+            );
+          })}
 
+          {editMode && (
+            <>
+              {message === "error" && (
+                <p className="text-center text-white">Erro ao salvar preferências</p>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving || !currentUser}
+                className="w-full rounded-full bg-white py-4 mt-2 disabled:opacity-60"
+                style={{ color: COLORS.orange }}
+              >
+                {saving ? "Salvando..." : "Salvar escolhas"}
+              </button>
+            </>
+          )}
+
+          {!editMode && message === "success" && (
+            <p className="text-center text-white">Preferências salvas</p>
+          )}
         </div>
       </div>
 
