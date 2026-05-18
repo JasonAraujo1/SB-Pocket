@@ -27,6 +27,20 @@
   background: transparent;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #048187;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
 html {
   scrollbar-gutter: stable;
   overflow-x: hidden;
@@ -37,5 +51,4 @@ body,
 * {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }

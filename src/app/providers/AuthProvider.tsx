@@ -12,7 +12,9 @@ export const AuthContext = createContext<AuthContextValue | null>(null);
 
 function mapPillarsToDisplay(selectedPillars: string[]): string[] {
   if (!selectedPillars?.length) return ALL_PILLAR_NAMES;
-  return selectedPillars.map((k) => PILLAR_KEY_MAP[k] ?? k).filter(Boolean);
+  // Deduplica: "gestao_pessoas" e "financas" mapeiam para o mesmo nome agora
+  const names = selectedPillars.map((k) => PILLAR_KEY_MAP[k] ?? k).filter(Boolean);
+  return [...new Set(names)];
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

@@ -7,36 +7,34 @@ import { BottomNav } from "../components/common/BottomNav";
 import { PageLoader } from "../components/common/PageLoader";
 import { PillarTabs } from "../components/iaf/PillarTabs";
 import { IafIndicatorCard } from "../components/iaf/IafIndicatorCard";
-import { PILLARS, PILLAR_DISPLAY_TO_KEY, PILLAR_KEY_MAP } from "../constants/pillars";
+import { PILLARS, PILLAR_DISPLAY_TO_KEY, PILLAR_KEY_MAP, SOURCE_KEY_TO_PILLAR_KEY, indicatorBelongsToPillar } from "../constants/pillars";
 import { useIafReport } from "../hooks/useIafReport";
-import { useAuth } from "../hooks/useAuth";
 import { formatReportDate } from "../utils/date";
 
-const VALID_PILLAR_KEYS = new Set(Object.keys(PILLAR_KEY_MAP));
+// DataPage mostra TODOS os pilares — selectedPillars é só filtro visual da Home
+const ALL_PILLAR_NAMES = PILLARS.map((p) => p.name);
 
 export function DataPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { preferredPillars } = useAuth();
-
-  // pilares visíveis: preferência do usuário ou todos se não houver seleção
-  const visiblePillars = preferredPillars.length > 0
-    ? preferredPillars
-    : PILLARS.map((p) => p.name);
-
-  // Pilar inicial: query param ?pilar=gestao_comercial → nome de exibição, ou padrão
-  const pillarFromUrl = searchParams.get("pilar") ?? "";
-  const initialPillar = VALID_PILLAR_KEYS.has(pillarFromUrl) && PILLAR_KEY_MAP[pillarFromUrl]
-    ? PILLAR_KEY_MAP[pillarFromUrl]
-    : (visiblePillars[0] ?? PILLARS[0].name);
+  // Pilar inicial: query param ?pilar=gestao_pessoas → normaliza legacy → nome de exibição
+  const rawPillarKey = searchParams.get("pilar") ?? "";
+  const normalizedPillarKey = SOURCE_KEY_TO_PILLAR_KEY[rawPillarKey] ?? rawPillarKey;
+  const initialPillar = PILLAR_KEY_MAP[normalizedPillarKey] ?? PILLARS[0].name;
 
   const [activePillar, setActivePillar] = useState(initialPillar);
   const { report, loading, error, refetch } = useIafReport();
 
+  const allIndicators = report?.indicators ?? [];
   const activePillarKey = PILLAR_DISPLAY_TO_KEY[activePillar] ?? activePillar;
-  const indicators = (report?.indicators ?? []).filter(
-    (ind) => ind.pillar === activePillarKey || ind.pillar === activePillar
+  const filteredIndicators = allIndicators.filter(
+    (ind) => indicatorBelongsToPillar(ind.pillar, activePillarKey)
   );
+
+  console.log("[Dados] total indicators:", allIndicators.length);
+  console.log("[Dados] selectedPillar:", activePillarKey);
+  console.log("[Dados] filteredIndicators:", filteredIndicators.length);
+  console.log("[Dados] pillars disponíveis:", [...new Set(allIndicators.map((i) => i.pillar))]);
 
   return (
     <div
@@ -68,7 +66,7 @@ export function DataPage() {
 
       {/* Pillar tabs */}
       <div className="pt-3">
-        <PillarTabs active={activePillar} onChange={setActivePillar} pillars={visiblePillars} />
+        <PillarTabs active={activePillar} onChange={setActivePillar} pillars={ALL_PILLAR_NAMES} />
       </div>
 
       {/* Content */}
@@ -94,17 +92,17 @@ export function DataPage() {
         )}
 
         {/* No indicators for this pillar */}
-        {!loading && !error && report && indicators.length === 0 && (
+        {!loading && !error && report && filteredIndicators.length === 0 && (
           <p className="text-center text-white/70 py-10">
-            Sem indicadores para {activePillar}
+            Nenhum indicador disponível para este pilar
           </p>
         )}
 
         {/* Indicator cards */}
         {!loading &&
           !error &&
-          indicators.map((ind) => (
-            <IafIndicatorCard key={ind.code} indicator={ind} />
+          filteredIndicators.map((ind, index) => (
+            <IafIndicatorCard key={`${ind.pillar}-${ind.code}-${index}`} indicator={ind} />
           ))}
       </div>
 

@@ -1,5 +1,6 @@
 import { getLatestIafUpdate, getPreviousIafReport, getReportByDate } from "./firestore";
 import type { IafReport, IafIndicator, IafPillarSummary } from "../app/types/iaf";
+import { SOURCE_KEY_TO_PILLAR_KEY, PILLARS } from "../app/constants/pillars";
 
 // ── Utilitários ──────────────────────────────────────────────────────────────
 
@@ -18,7 +19,9 @@ function avgByPillar(indicators: IafIndicator[]): Record<string, number> {
     if (!ind.pillar) continue;
     const pct = metricNum(ind.percentualAtingido?.raw);
     if (pct === null) continue;
-    groups[ind.pillar] = [...(groups[ind.pillar] ?? []), pct];
+    // Mapeia source key (gestao_pessoas/financas) → pillar key visual (gestao_pessoas_financas)
+    const pillarKey = SOURCE_KEY_TO_PILLAR_KEY[ind.pillar] ?? ind.pillar;
+    groups[pillarKey] = [...(groups[pillarKey] ?? []), pct];
   }
   return Object.fromEntries(
     Object.entries(groups).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length])
@@ -106,10 +109,12 @@ function buildComparisonSummary(
     }
   }
 
-  // Pilares sem dados numéricos
-  for (const ind of current) {
-    if (ind.pillar && !(ind.pillar in summary)) {
-      summary[ind.pillar] = {
+  // Pilares com indicadores mas sem dados numéricos de percentual
+  for (const pillar of PILLARS) {
+    if (pillar.key in summary) continue;
+    const hasIndicator = current.some((ind) => pillar.sourceKeys.includes(ind.pillar));
+    if (hasIndicator) {
+      summary[pillar.key] = {
         status: "pending_comparison",
         message: STATUS_MESSAGES.pending_comparison,
       };
