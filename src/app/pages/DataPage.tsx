@@ -46,7 +46,7 @@ export function DataPage() {
         backgroundImage: "linear-gradient(to right, rgba(0,0,0,0.12), rgba(0,0,0,0) 45%)",
       }}
     >
-      <div className="px-6 pt-3 pb-1"><div className="h-8" /></div>
+      <div style={{ paddingTop: "env(safe-area-inset-top, 0px)", minHeight: "calc(1.25rem + env(safe-area-inset-top, 0px))" }} />
 
       {/* Header */}
       <div className="px-6 pt-2 pb-1 flex items-center">

@@ -10,7 +10,10 @@ const NAV_ITEMS = [
 
 export function BottomNav() {
   return (
-    <div className="px-3 pt-2 pb-3">
+    <div
+      className="shrink-0 px-3 pt-2"
+      style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
+    >
       <div className="rounded-2xl flex items-center justify-around py-2 px-1 border border-white/70 bg-transparent">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
