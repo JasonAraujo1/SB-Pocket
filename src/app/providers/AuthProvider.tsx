@@ -1,6 +1,7 @@
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import { validateLogin } from "../../services/authService";
 import { restoreUserSession, saveSelectedPillars } from "../../services/userService";
+import { registerDailyAccess } from "../../services/accessLogService";
 import { PILLAR_KEY_MAP, PILLAR_DISPLAY_TO_KEY, ALL_PILLAR_NAMES } from "../constants/pillars";
 import type { UserProfile } from "../types/user";
 import type { AuthContextValue } from "../types/auth";
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (user) {
           setCurrentUser(user);
           setPreferredPillars(mapPillarsToDisplay(user.selectedPillars));
+          registerDailyAccess(user).catch((err) => console.error("[AccessLogs] falha na restauração de sessão:", err));
         } else {
           localStorage.removeItem(SESSION_KEY);
         }
@@ -41,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SESSION_KEY, user.cpf);
     setCurrentUser(user);
     setPreferredPillars(mapPillarsToDisplay(user.selectedPillars));
+    console.log("[AccessLogs] registrando acesso:", user);
+    registerDailyAccess(user).catch((err) => console.error("[AccessLogs] falha no login:", err));
     return null;
   };
 

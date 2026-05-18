@@ -223,7 +223,7 @@ export function HomePage() {
                     </div>
                     {/* Média geral */}
                     <span className="text-xs text-white/70 mt-0.5">
-                      Média geral {c.currentPercent}
+                      Média indicadores {c.currentPercent}
                     </span>
                     {/* Mensagem */}
                     <span className="text-xs text-white/55 leading-snug">{c.text}</span>

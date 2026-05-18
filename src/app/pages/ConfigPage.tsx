@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Pencil } from "lucide-react";
 import { COLORS } from "../constants/colors";
@@ -9,6 +9,7 @@ import { BottomNav } from "../components/common/BottomNav";
 import { PillarToggle } from "../components/iaf/PillarToggle";
 import { IconButton } from "../components/common/IconButton";
 import { PILLARS } from "../constants/pillars";
+import { getYesterdayAndTodayActiveUsersCount } from "../../services/accessLogService";
 
 export function ConfigPage() {
   const navigate = useNavigate();
@@ -21,6 +22,35 @@ export function ConfigPage() {
   const [editShake, setEditShake] = useState(false);
 
   const editBtnRef = useRef<HTMLButtonElement>(null);
+
+  const [accessCounts, setAccessCounts] = useState<{ yesterday: number; today: number } | null>(null);
+  const [accessLoading, setAccessLoading] = useState(true);
+  const [accessError, setAccessError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccessCounts() {
+      setAccessLoading(true);
+      setAccessError(null);
+      try {
+        const result = await getYesterdayAndTodayActiveUsersCount();
+        console.log("[AccessLogs] ontem:", result.yesterday);
+        console.log("[AccessLogs] hoje:", result.today);
+        if (!isMounted) return;
+        setAccessCounts({ yesterday: result.yesterday, today: result.today });
+      } catch (error) {
+        console.error("[AccessLogs] Erro ao carregar acessos:", error);
+        if (!isMounted) return;
+        setAccessError("Não foi possível carregar acessos");
+      } finally {
+        if (isMounted) setAccessLoading(false);
+      }
+    }
+
+    loadAccessCounts();
+    return () => { isMounted = false; };
+  }, []);
 
   const triggerEditShake = () => {
     setEditShake(false);
@@ -142,6 +172,22 @@ export function ConfigPage() {
             <p className="text-center text-white">Preferências salvas</p>
           )}
         </div>
+      </div>
+
+      {/* Footer de acessos */}
+      <div className="px-6 py-2 border-t border-white/20 text-center">
+        {accessLoading && (
+          <p className="text-white/40 text-xs">Carregando acessos...</p>
+        )}
+        {!accessLoading && accessError && (
+          <p className="text-white/40 text-xs">{accessError}</p>
+        )}
+        {!accessLoading && !accessError && accessCounts && (
+          <div className="flex justify-center gap-6 text-white/40 text-xs">
+            <span>Ativos ontem: {accessCounts.yesterday}</span>
+            <span>Ativos hoje: {accessCounts.today}</span>
+          </div>
+        )}
       </div>
 
       <BottomNav />
