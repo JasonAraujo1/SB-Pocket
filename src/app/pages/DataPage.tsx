@@ -9,18 +9,27 @@ import { PillarTabs } from "../components/iaf/PillarTabs";
 import { IafIndicatorCard } from "../components/iaf/IafIndicatorCard";
 import { PILLARS, PILLAR_DISPLAY_TO_KEY, PILLAR_KEY_MAP, SOURCE_KEY_TO_PILLAR_KEY, indicatorBelongsToPillar } from "../constants/pillars";
 import { useIafReport } from "../hooks/useIafReport";
+import { useAuth } from "../hooks/useAuth";
 import { formatReportDate } from "../utils/date";
-
-// DataPage mostra TODOS os pilares — selectedPillars é só filtro visual da Home
-const ALL_PILLAR_NAMES = PILLARS.map((p) => p.name);
 
 export function DataPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Pilar inicial: query param ?pilar=gestao_pessoas → normaliza legacy → nome de exibição
+  const { preferredPillars } = useAuth();
+
+  // Pilares permitidos = preferência do usuário (fallback: todos)
+  const allowedPillars = preferredPillars.length > 0
+    ? PILLARS.filter((p) => preferredPillars.includes(p.name))
+    : PILLARS;
+  const allowedPillarNames = allowedPillars.map((p) => p.name);
+
+  // Pilar inicial: query param → normaliza legacy → valida contra permitidos → fallback
   const rawPillarKey = searchParams.get("pilar") ?? "";
   const normalizedPillarKey = SOURCE_KEY_TO_PILLAR_KEY[rawPillarKey] ?? rawPillarKey;
-  const initialPillar = PILLAR_KEY_MAP[normalizedPillarKey] ?? PILLARS[0].name;
+  const pillarNameFromUrl = PILLAR_KEY_MAP[normalizedPillarKey] ?? "";
+  const initialPillar = allowedPillarNames.includes(pillarNameFromUrl)
+    ? pillarNameFromUrl
+    : (allowedPillars[0]?.name ?? PILLARS[0].name);
 
   const [activePillar, setActivePillar] = useState(initialPillar);
   const { report, loading, error, refetch } = useIafReport();
@@ -66,7 +75,7 @@ export function DataPage() {
 
       {/* Pillar tabs */}
       <div className="pt-3">
-        <PillarTabs active={activePillar} onChange={setActivePillar} pillars={ALL_PILLAR_NAMES} />
+        <PillarTabs active={activePillar} onChange={setActivePillar} pillars={allowedPillarNames} />
       </div>
 
       {/* Content */}

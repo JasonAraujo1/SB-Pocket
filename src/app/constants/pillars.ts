@@ -46,3 +46,16 @@ export function indicatorBelongsToPillar(indicatorPillar: string, pillarKey: str
   if (!pillar) return false;
   return pillar.sourceKeys.includes(indicatorPillar);
 }
+
+// Normaliza selectedPillars do Firestore (chaves raw, possivelmente legadas) para chaves de pilares visuais
+// Retorna todos os pilares como fallback se a lista for vazia ou inválida
+export function normalizeSelectedPillars(selectedPillars?: string[]): string[] {
+  const validKeys = PILLARS.map((p) => p.key);
+  if (!selectedPillars?.length) return validKeys;
+
+  const normalized = [...new Set(
+    selectedPillars.map((k) => SOURCE_KEY_TO_PILLAR_KEY[k] ?? k)
+  )].filter((k) => validKeys.includes(k));
+
+  return normalized.length > 0 ? normalized : validKeys;
+}
