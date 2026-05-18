@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { ChevronLeft, Calendar } from "lucide-react";
 import { COLORS } from "../constants/colors";
 import { ROUTES } from "../routes/routes";
@@ -7,13 +7,16 @@ import { BottomNav } from "../components/common/BottomNav";
 import { PageLoader } from "../components/common/PageLoader";
 import { PillarTabs } from "../components/iaf/PillarTabs";
 import { IafIndicatorCard } from "../components/iaf/IafIndicatorCard";
-import { PILLARS, PILLAR_DISPLAY_TO_KEY } from "../constants/pillars";
+import { PILLARS, PILLAR_DISPLAY_TO_KEY, PILLAR_KEY_MAP } from "../constants/pillars";
 import { useIafReport } from "../hooks/useIafReport";
 import { useAuth } from "../hooks/useAuth";
 import { formatReportDate } from "../utils/date";
 
+const VALID_PILLAR_KEYS = new Set(Object.keys(PILLAR_KEY_MAP));
+
 export function DataPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { preferredPillars } = useAuth();
 
   // pilares visíveis: preferência do usuário ou todos se não houver seleção
@@ -21,7 +24,13 @@ export function DataPage() {
     ? preferredPillars
     : PILLARS.map((p) => p.name);
 
-  const [activePillar, setActivePillar] = useState(visiblePillars[0] ?? PILLARS[0].name);
+  // Pilar inicial: query param ?pilar=gestao_comercial → nome de exibição, ou padrão
+  const pillarFromUrl = searchParams.get("pilar") ?? "";
+  const initialPillar = VALID_PILLAR_KEYS.has(pillarFromUrl) && PILLAR_KEY_MAP[pillarFromUrl]
+    ? PILLAR_KEY_MAP[pillarFromUrl]
+    : (visiblePillars[0] ?? PILLARS[0].name);
+
+  const [activePillar, setActivePillar] = useState(initialPillar);
   const { report, loading, error, refetch } = useIafReport();
 
   const activePillarKey = PILLAR_DISPLAY_TO_KEY[activePillar] ?? activePillar;

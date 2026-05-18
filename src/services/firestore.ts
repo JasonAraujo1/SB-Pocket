@@ -24,19 +24,18 @@ export async function getReportByDate(date: string): Promise<IafReport | null> {
   return { id: snap.id, ...snap.data() } as IafReport;
 }
 
-export async function getLatestTwoIafReports(): Promise<{
-  current: IafReport;
-  previous: IafReport | null;
-} | null> {
+export async function getLatestIafUpdate(): Promise<IafReport | null> {
+  const snap = await getDoc(doc(db, "iafLatest", "current"));
+  if (!snap.exists()) return null;
+  return { id: "current", ...snap.data() } as IafReport;
+}
+
+export async function getPreviousIafReport(beforeId: string): Promise<IafReport | null> {
   const snapshot = await getDocs(collection(db, "iafReports"));
   if (snapshot.empty) return null;
-
-  // IDs no formato YYYY-MM-DD — ordenação lexicográfica é suficiente
-  const sorted = snapshot.docs.sort((a, b) => b.id.localeCompare(a.id));
-  const current = { id: sorted[0].id, ...sorted[0].data() } as IafReport;
-  const previous = sorted[1]
-    ? ({ id: sorted[1].id, ...sorted[1].data() } as IafReport)
-    : null;
-
-  return { current, previous };
+  const prev = snapshot.docs
+    .filter((d) => d.id < beforeId)
+    .sort((a, b) => b.id.localeCompare(a.id))[0];
+  if (!prev) return null;
+  return { id: prev.id, ...prev.data() } as IafReport;
 }

@@ -6,7 +6,6 @@ import {
   Equal,
   Clock,
   RefreshCw,
-  ChevronRight,
   LogOut,
 } from "lucide-react";
 import sbLogo from "../../assets/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px_.png";
@@ -54,14 +53,17 @@ const STATUS_CONFIG = {
   },
 } as const;
 
+function formatPercent(value?: number | null): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  return `${Number(value).toFixed(1)}%`;
+}
+
 function getPillarCard(key: string, summary: IafPillarSummary) {
   const cfg = STATUS_CONFIG[summary.status] ?? STATUS_CONFIG.pending_comparison;
   const name = PILLAR_KEY_MAP[key] ?? key;
-  const pct =
-    typeof summary.averagePercentual === "number"
-      ? `${summary.averagePercentual.toFixed(1)}%`
-      : null;
-  return { key, name, cfg, pct, text: summary.message ?? cfg.text };
+  const currentPercent = formatPercent(summary.currentValue ?? summary.averagePercentual);
+  const variationLabel = summary.variationLabel ?? "";
+  return { key, name, cfg, currentPercent, variationLabel, text: summary.message ?? cfg.text };
 }
 
 export function HomePage() {
@@ -197,7 +199,7 @@ export function HomePage() {
               return (
                 <button
                   key={c.key}
-                  onClick={() => navigate(ROUTES.dados)}
+                  onClick={() => navigate(`${ROUTES.dados}?pilar=${c.key}`)}
                   className="w-full rounded-2xl p-4 flex items-center gap-4"
                   style={{
                     backgroundColor: "rgba(255,255,255,0.15)",
@@ -209,16 +211,23 @@ export function HomePage() {
                   <div className="w-11 h-11 flex items-center justify-center shrink-0">
                     <Icon className="w-6 h-6" style={{ color }} />
                   </div>
-                  <div className="flex-1 text-left flex flex-col gap-1">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-base font-medium text-white">{SHORT_NAMES[c.name] ?? c.name}</span>
-                      {c.pct && (
-                        <span className="text-xs text-white/70">{c.pct}</span>
+                  <div className="flex-1 text-left flex flex-col gap-0.5 min-w-0">
+                    {/* Título + variação */}
+                    <div className="flex items-center justify-between gap-3 w-full">
+                      <span className="text-base font-medium text-white truncate">{SHORT_NAMES[c.name] ?? c.name}</span>
+                      {c.variationLabel && (
+                        <span className="text-xs font-semibold shrink-0" style={{ color: c.cfg.color }}>
+                          {c.variationLabel}
+                        </span>
                       )}
                     </div>
-                    <span className="text-xs text-white/70 leading-snug">{c.text}</span>
+                    {/* Média geral */}
+                    <span className="text-xs text-white/70 mt-0.5">
+                      Média geral {c.currentPercent}
+                    </span>
+                    {/* Mensagem */}
+                    <span className="text-xs text-white/55 leading-snug">{c.text}</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
                 </button>
               );
             })}

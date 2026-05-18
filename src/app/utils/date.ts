@@ -39,6 +39,11 @@ export function formatReportDate(report: { id: string; reportDateBr?: string; re
   return String(raw);
 }
 
-export function formatReportTime(report: { executedAtBr?: string; createdAtBr?: string; debugUpdatedAtBr?: string }): string {
-  return report.executedAtBr ?? report.createdAtBr ?? report.debugUpdatedAtBr ?? "—";
+export function formatReportTime(report: {
+  updatedAtBr?: string;
+  executedAtBr?: string;
+  createdAtBr?: string;
+  debugUpdatedAtBr?: string;
+}): string {
+  return report.updatedAtBr ?? report.executedAtBr ?? report.createdAtBr ?? report.debugUpdatedAtBr ?? "—";
 }

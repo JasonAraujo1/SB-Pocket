@@ -1,5 +1,7 @@
-import { getLatestTwoIafReports, getReportByDate } from "./firestore";
+import { getLatestIafUpdate, getPreviousIafReport, getReportByDate } from "./firestore";
 import type { IafReport, IafIndicator, IafPillarSummary } from "../app/types/iaf";
+
+// ── Utilitários ──────────────────────────────────────────────────────────────
 
 function metricNum(raw: number | string | null | undefined): number | null {
   if (typeof raw === "number") return raw;
@@ -13,18 +15,61 @@ function metricNum(raw: number | string | null | undefined): number | null {
 function avgByPillar(indicators: IafIndicator[]): Record<string, number> {
   const groups: Record<string, number[]> = {};
   for (const ind of indicators) {
-    const key = ind.pillar;
-    if (!key) continue;
+    if (!ind.pillar) continue;
     const pct = metricNum(ind.percentualAtingido?.raw);
     if (pct === null) continue;
-    groups[key] = [...(groups[key] ?? []), pct];
+    groups[ind.pillar] = [...(groups[ind.pillar] ?? []), pct];
   }
   return Object.fromEntries(
     Object.entries(groups).map(([k, v]) => [k, v.reduce((a, b) => a + b, 0) / v.length])
   );
 }
 
-function buildPillarsSummary(
+// Converte qualquer valor de sourceReportId para string "YYYY-MM-DD"
+function resolveSourceId(latest: IafReport): string | null {
+  const sid = latest.sourceReportId as unknown;
+
+  // Caso 1: string YYYY-MM-DD
+  if (typeof sid === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sid)) return sid;
+
+  // Caso 2: Firestore Timestamp com .toDate()
+  if (sid && typeof (sid as { toDate?: unknown }).toDate === "function") {
+    const d = (sid as { toDate(): Date }).toDate();
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Caso 3: reportDate como fallback
+  if (latest.reportDate && /^\d{4}-\d{2}-\d{2}$/.test(latest.reportDate)) {
+    return latest.reportDate;
+  }
+
+  // Caso 4: reportDateBr "DD/MM/YYYY" → "YYYY-MM-DD"
+  if (latest.reportDateBr) {
+    const parts = latest.reportDateBr.split("/");
+    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+
+  return null;
+}
+
+// ── Geração do resumo de comparação ──────────────────────────────────────────
+
+function formatVariation(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const rounded = parseFloat(value.toFixed(1));
+  if (rounded > 0) return `+${rounded.toFixed(1)}%`;
+  if (rounded < 0) return `${rounded.toFixed(1)}%`;
+  return "0.0%";
+}
+
+const STATUS_MESSAGES: Record<IafPillarSummary["status"], string> = {
+  up: "Resultado alcançado se aproximou da meta",
+  down: "Resultado alcançado se distanciou da meta",
+  stable: "Resultado alcançado manteve-se estável",
+  pending_comparison: "Sem relatório anterior para comparação",
+};
+
+function buildComparisonSummary(
   current: IafIndicator[],
   previous: IafIndicator[] | null
 ): Record<string, IafPillarSummary> {
@@ -32,7 +77,6 @@ function buildPillarsSummary(
   const previousAvgs = previous ? avgByPillar(previous) : null;
   const summary: Record<string, IafPillarSummary> = {};
 
-  // Pilares com dados numéricos
   for (const [key, currentAvg] of Object.entries(currentAvgs)) {
     const prevAvg = previousAvgs?.[key] ?? null;
 
@@ -40,25 +84,34 @@ function buildPillarsSummary(
       summary[key] = {
         status: "pending_comparison",
         averagePercentual: parseFloat(currentAvg.toFixed(1)),
-        message: "Sem relatório anterior para comparação",
+        currentValue: parseFloat(currentAvg.toFixed(1)),
+        previousValue: null,
+        variation: null,
+        variationLabel: "",
+        message: STATUS_MESSAGES.pending_comparison,
       };
     } else {
-      const diff = currentAvg - prevAvg;
+      const variation = parseFloat((currentAvg - prevAvg).toFixed(1));
       const status: IafPillarSummary["status"] =
-        diff > 1 ? "up" : diff < -1 ? "down" : "stable";
+        variation > 0 ? "up" : variation < 0 ? "down" : "stable";
       summary[key] = {
         status,
         averagePercentual: parseFloat(currentAvg.toFixed(1)),
+        currentValue: parseFloat(currentAvg.toFixed(1)),
+        previousValue: parseFloat(prevAvg.toFixed(1)),
+        variation,
+        variationLabel: formatVariation(variation),
+        message: STATUS_MESSAGES[status],
       };
     }
   }
 
-  // Pilares sem percentual ficam como pending
+  // Pilares sem dados numéricos
   for (const ind of current) {
     if (ind.pillar && !(ind.pillar in summary)) {
       summary[ind.pillar] = {
         status: "pending_comparison",
-        message: "Sem relatório anterior para comparação",
+        message: STATUS_MESSAGES.pending_comparison,
       };
     }
   }
@@ -66,34 +119,58 @@ function buildPillarsSummary(
   return summary;
 }
 
-function normalizeReport(
-  raw: IafReport,
-  previousRaw: IafReport | null
-): IafReport {
-  const indicators = Array.isArray(raw.indicators) ? raw.indicators : [];
-  const previousIndicators =
-    previousRaw && Array.isArray(previousRaw.indicators)
-      ? previousRaw.indicators
-      : null;
-
-  // Prefere pillarsSummary já calculado pelo Firebase; constrói se ausente ou vazio
-  const pillarsSummary =
-    raw.pillarsSummary && Object.keys(raw.pillarsSummary).length > 0
-      ? raw.pillarsSummary
-      : buildPillarsSummary(indicators, previousIndicators);
-
-  const date = raw.date ?? raw.id;
-  return { ...raw, date, indicators, pillarsSummary };
-}
+// ── Funções públicas ──────────────────────────────────────────────────────────
 
 export async function fetchLatestReport(): Promise<IafReport | null> {
-  const result = await getLatestTwoIafReports();
-  if (!result) return null;
-  return normalizeReport(result.current, result.previous);
+  // 1. Referência da última atualização
+  const latest = await getLatestIafUpdate();
+  if (!latest) return null;
+  console.log("[IAF] latest:", latest);
+
+  // 2. Resolver o ID do relatório atual em iafReports
+  const sourceId = resolveSourceId(latest);
+  console.log("[IAF] sourceReportId:", sourceId);
+
+  if (!sourceId) {
+    // Sem sourceReportId — usa indicators de iafLatest sem comparação
+    const indicators = Array.isArray(latest.indicators) ? latest.indicators : [];
+    return { ...latest, indicators, pillarsSummary: buildComparisonSummary(indicators, null) };
+  }
+
+  // 3. Buscar currentReport em iafReports/{sourceId}
+  const currentReport = await getReportByDate(sourceId);
+  console.log("[IAF] currentReportId:", currentReport?.id ?? "não encontrado");
+
+  // 4. Buscar previousReport: primeiro doc de iafReports com ID < sourceId
+  const previousReport = await getPreviousIafReport(sourceId);
+  console.log("[IAF] previousReportId:", previousReport?.id ?? "nenhum");
+
+  // 5. Montar indicadores para comparação
+  const currentIndicators =
+    currentReport && Array.isArray(currentReport.indicators)
+      ? currentReport.indicators
+      : Array.isArray(latest.indicators) ? latest.indicators : [];
+
+  const previousIndicators =
+    previousReport && Array.isArray(previousReport.indicators)
+      ? previousReport.indicators
+      : null;
+
+  // 6. Calcular comparação
+  const comparisonSummary = buildComparisonSummary(currentIndicators, previousIndicators);
+  console.log("[IAF] comparisonSummary:", comparisonSummary);
+
+  return {
+    ...latest,
+    // Dados para exibição: usa iafLatest/current (mais atualizado)
+    indicators: Array.isArray(latest.indicators) ? latest.indicators : currentIndicators,
+    pillarsSummary: comparisonSummary,
+  };
 }
 
 export async function fetchReportByDate(date: string): Promise<IafReport | null> {
   const raw = await getReportByDate(date);
   if (!raw) return null;
-  return normalizeReport(raw, null);
+  const indicators = Array.isArray(raw.indicators) ? raw.indicators : [];
+  return { ...raw, indicators, pillarsSummary: buildComparisonSummary(indicators, null) };
 }

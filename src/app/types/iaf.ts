@@ -31,6 +31,10 @@ export type IafIndicator = {
 export type IafPillarSummary = {
   status: "pending_comparison" | "up" | "down" | "stable";
   averagePercentual?: number | null;
+  currentValue?: number | null;
+  previousValue?: number | null;
+  variation?: number | null;
+  variationLabel?: string;
   message?: string;
 };
 
@@ -39,9 +43,13 @@ type FirestoreTimestamp = { toDate(): Date; seconds: number };
 export type IafReport = {
   id: string;
   date?: string;
-  // campos de data/hora já formatados pelo n8n (preferência de exibição)
   reportDate?: string;
   reportDateBr?: string;
+  // campos de iafLatest/current
+  updatedAt?: string | FirestoreTimestamp;
+  updatedAtBr?: string;
+  sourceReportId?: string | FirestoreTimestamp;
+  // campos legados de iafReports
   createdAtBr?: string;
   executedAtBr?: string;
   debugUpdatedAtBr?: string;
