@@ -167,9 +167,9 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
 
   return {
     ...latest,
-    // Dados para exibição: usa iafLatest/current (mais atualizado)
     indicators: Array.isArray(latest.indicators) ? latest.indicators : currentIndicators,
     pillarsSummary: comparisonSummary,
+    previousRankingSummary: previousReport?.rankingSummary,
   };
 }
 

@@ -7,6 +7,10 @@ import {
   Clock,
   RefreshCw,
   LogOut,
+  Medal,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
 } from "lucide-react";
 import sbLogo from "../../assets/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px_.png";
 import { COLORS } from "../constants/colors";
@@ -17,6 +21,7 @@ import { ScreenContainer } from "../components/common/ScreenContainer";
 import { BottomNav } from "../components/common/BottomNav";
 import { PageLoader } from "../components/common/PageLoader";
 import { PILLARS, PILLAR_KEY_MAP } from "../constants/pillars";
+import type { IafPillarCard } from "../types/iaf";
 import { formatReportTime } from "../utils/date";
 import type { IafPillarSummary } from "../types/iaf";
 
@@ -52,6 +57,40 @@ const STATUS_CONFIG = {
     text: "Aguardando comparação com relatório anterior",
   },
 } as const;
+
+function toNum(raw: number | string | null | undefined): number | undefined {
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const n = parseFloat(raw.replace(",", "."));
+    return isNaN(n) ? undefined : n;
+  }
+  return undefined;
+}
+
+function getPointsTrend(
+  currentRaw?: number | string | null,
+  previousRaw?: number | string | null
+): "up" | "down" | "stable" | "none" {
+  const current = toNum(currentRaw);
+  const previous = toNum(previousRaw);
+  if (typeof current !== "number" || typeof previous !== "number") return "none";
+  if (current > previous) return "up";
+  if (current < previous) return "down";
+  return "stable";
+}
+
+function formatRating(rating?: string | null): string {
+  if (!rating) return "—";
+  if (rating === "UNCLASSIFIED") return "Não classificado";
+  return rating;
+}
+
+function findPillarCard(cards: IafPillarCard[] | undefined, pillarKey: string): IafPillarCard | null {
+  if (!cards?.length) return null;
+  const pillar = PILLARS.find((p) => p.key === pillarKey);
+  if (!pillar) return null;
+  return cards.find((c) => pillar.sourceKeys.includes(c.key)) ?? null;
+}
 
 function formatPercent(value?: number | null): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
@@ -109,32 +148,80 @@ export function HomePage() {
 
         {/* Update card */}
         <div className="px-5 pt-4">
-          <div className="border border-white/60 rounded-2xl p-5 flex flex-col items-center text-white">
-            <div className="relative">
-              <div className="w-14 h-14 rounded-full border border-white/60 flex items-center justify-center">
-                <Bell className="w-7 h-7 text-white" />
-              </div>
-              <div
-                className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: COLORS.teal, border: "1px solid rgba(255,255,255,0.6)" }}
-              >
-                <TrendingUp className="w-3.5 h-3.5 text-white" />
+          <style>{`
+            @keyframes sb-wiggle {
+              0%, 100% { transform: rotate(0deg); }
+              25% { transform: rotate(-12deg); }
+              75% { transform: rotate(12deg); }
+            }
+            @keyframes sb-spin-once {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+          <div className="border border-white/60 rounded-2xl p-5 text-white">
+            {/* Ícone central no topo */}
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="w-14 h-14 rounded-full border border-white/60 flex items-center justify-center">
+                  <Bell className="w-7 h-7 text-white" />
+                </div>
+                <div
+                  className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: COLORS.teal, border: "1px solid rgba(255,255,255,0.6)" }}
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-white" />
+                </div>
               </div>
             </div>
-            <p className="text-white mt-3">Atualização diária</p>
-            <div className="w-full h-px bg-white/30 my-3" />
-            <style>{`
-              @keyframes sb-wiggle {
-                0%, 100% { transform: rotate(0deg); }
-                25% { transform: rotate(-12deg); }
-                75% { transform: rotate(12deg); }
-              }
-              @keyframes sb-spin-once {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-              }
-            `}</style>
-            <div className="w-full flex items-center gap-3">
+
+            {/* 2 colunas */}
+            {(() => {
+              const rs = report?.rankingSummary;
+              const prev = report?.previousRankingSummary;
+              const trend = getPointsTrend(rs?.points.raw, prev?.points.raw);
+              const TrendIcon =
+                trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
+              const trendColor =
+                trend === "up" ? "#34d399" : trend === "down" ? "#f87171" : "rgba(255,255,255,0.35)";
+
+              return (
+                <div className="flex items-stretch gap-4">
+                  {/* Coluna esquerda — Atualização */}
+                  <div className="flex-1 flex flex-col gap-1">
+                    <span className="text-sm text-white/60">Atualização diária</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Medal className="w-4 h-4 text-white/70 shrink-0" />
+                      <span className="text-sm text-white leading-snug">
+                        {formatRating(rs?.rating)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Divisor vertical */}
+                  <div className="w-px bg-white/25 self-stretch" />
+
+                  {/* Coluna direita — Pontuação */}
+                  <div className="flex-1 flex flex-col gap-0.5">
+                    <span className="text-sm text-white/60">Pontuação do CP</span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xl font-semibold text-white leading-tight">
+                        {rs?.points.formatado ?? "—"}
+                      </span>
+                      {trend !== "none" && (
+                        <TrendIcon className="w-4 h-4 shrink-0" style={{ color: trendColor }} />
+                      )}
+                    </div>
+                    <span className="text-sm text-white/75">
+                      {rs?.percentage.formatado ?? "—"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Rodapé com botão de atualizar */}
+            <div className="mt-4 pt-3 border-t border-white/20 flex items-center gap-3">
               <button
                 onClick={refetch}
                 className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center shrink-0"
@@ -150,17 +237,11 @@ export function HomePage() {
                   }}
                 />
               </button>
-              <div className="flex-1 flex flex-col">
-                {report ? (
-                  <span className="text-white/55">
-                    Atualizado · {formatReportTime(report)}
-                  </span>
-                ) : (
-                  <span className="text-white/70">
-                    {loading ? "Carregando..." : "Sem dados de atualização"}
-                  </span>
-                )}
-              </div>
+              <span className="text-sm text-white/55">
+                {report
+                  ? `Atualizado · ${formatReportTime(report)}`
+                  : loading ? "Carregando..." : "Sem dados de atualização"}
+              </span>
             </div>
           </div>
         </div>
@@ -196,6 +277,7 @@ export function HomePage() {
             !error &&
             summaryCards.map((c) => {
               const { Icon, color } = c.cfg;
+              const pillarCard = findPillarCard(report?.pillarsCards, c.key);
               return (
                 <button
                   key={c.key}
@@ -221,8 +303,14 @@ export function HomePage() {
                         </span>
                       )}
                     </div>
+                    {/* Atingimento e Falta p/ Meta */}
+                    {pillarCard && (
+                      <span className="text-xs text-white/75 mt-0.5">
+                        Atingimento {pillarCard.achievement.formatado} • Falta p/ Meta {pillarCard.untilGoal.formatado}
+                      </span>
+                    )}
                     {/* Média geral */}
-                    <span className="text-xs text-white/70 mt-0.5">
+                    <span className="text-xs text-white/70">
                       Média indicadores {c.currentPercent}
                     </span>
                     {/* Mensagem */}

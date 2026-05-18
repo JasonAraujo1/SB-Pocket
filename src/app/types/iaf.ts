@@ -38,6 +38,19 @@ export type IafPillarSummary = {
   message?: string;
 };
 
+export type IafRankingSummary = {
+  points: { formatado: string; raw?: number | string | null };
+  percentage: { formatado: string; raw?: number | string | null };
+  rating: string;
+};
+
+export type IafPillarCard = {
+  key: string;
+  title: string;
+  achievement: { formatado: string };
+  untilGoal: { formatado: string };
+};
+
 type FirestoreTimestamp = { toDate(): Date; seconds: number };
 
 export type IafReport = {
@@ -61,4 +74,7 @@ export type IafReport = {
   executedAt?: string | FirestoreTimestamp;
   indicators: IafIndicator[];
   pillarsSummary: Record<string, IafPillarSummary>;
+  rankingSummary?: IafRankingSummary;
+  previousRankingSummary?: IafRankingSummary;
+  pillarsCards?: IafPillarCard[];
 };
