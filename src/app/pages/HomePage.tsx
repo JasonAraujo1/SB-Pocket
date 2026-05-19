@@ -58,24 +58,13 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-function toNum(raw: number | string | null | undefined): number | undefined {
-  if (typeof raw === "number") return raw;
-  if (typeof raw === "string") {
-    const n = parseFloat(raw.replace(",", "."));
-    return isNaN(n) ? undefined : n;
-  }
-  return undefined;
-}
-
 function getPointsTrend(
   currentRaw?: number | string | null,
   previousRaw?: number | string | null
 ): "up" | "down" | "stable" | "none" {
-  const current = toNum(currentRaw);
-  const previous = toNum(previousRaw);
-  if (typeof current !== "number" || typeof previous !== "number") return "none";
-  if (current > previous) return "up";
-  if (current < previous) return "down";
+  if (typeof currentRaw !== "number" || typeof previousRaw !== "number") return "none";
+  if (currentRaw > previousRaw) return "up";
+  if (currentRaw < previousRaw) return "down";
   return "stable";
 }
 

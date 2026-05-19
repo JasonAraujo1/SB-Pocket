@@ -62,6 +62,7 @@ export type IafReport = {
   updatedAt?: string | FirestoreTimestamp;
   updatedAtBr?: string;
   sourceReportId?: string | FirestoreTimestamp;
+  sourceReportKey?: string;
   // campos legados de iafReports
   createdAtBr?: string;
   executedAtBr?: string;

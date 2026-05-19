@@ -28,28 +28,20 @@ function avgByPillar(indicators: IafIndicator[]): Record<string, number> {
   );
 }
 
-// Converte qualquer valor de sourceReportId para string "YYYY-MM-DD"
-function resolveSourceId(latest: IafReport): string | null {
-  const sid = latest.sourceReportId as unknown;
-
-  // Caso 1: string YYYY-MM-DD
-  if (typeof sid === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sid)) return sid;
-
-  // Caso 2: Firestore Timestamp com .toDate()
-  if (sid && typeof (sid as { toDate?: unknown }).toDate === "function") {
-    const d = (sid as { toDate(): Date }).toDate();
-    return d.toISOString().slice(0, 10);
+// Extrai o ID do relatório atual ("YYYY-MM-DD") a partir do documento iafLatest.
+// Prioriza sourceReportKey para evitar perda de dia por conversão de Timestamp com fuso.
+function getCurrentReportIdFromLatest(latest: IafReport): string | null {
+  if (latest.sourceReportKey) {
+    return String(latest.sourceReportKey).replace("report_", "");
   }
 
-  // Caso 3: reportDate como fallback
-  if (latest.reportDate && /^\d{4}-\d{2}-\d{2}$/.test(latest.reportDate)) {
+  if (typeof latest.reportDate === "string") {
     return latest.reportDate;
   }
 
-  // Caso 4: reportDateBr "DD/MM/YYYY" → "YYYY-MM-DD"
   if (latest.reportDateBr) {
-    const parts = latest.reportDateBr.split("/");
-    if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    const [day, month, year] = latest.reportDateBr.split("/");
+    return `${year}-${month}-${day}`;
   }
 
   return null;
@@ -133,8 +125,10 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
   console.log("[IAF] latest:", latest);
 
   // 2. Resolver o ID do relatório atual em iafReports
-  const sourceId = resolveSourceId(latest);
-  console.log("[IAF] sourceReportId:", sourceId);
+  console.log("[IAF] latest.sourceReportKey:", latest.sourceReportKey);
+  console.log("[IAF] latest.reportDateBr:", latest.reportDateBr);
+  const sourceId = getCurrentReportIdFromLatest(latest);
+  console.log("[IAF] currentReportId corrigido:", sourceId);
 
   if (!sourceId) {
     // Sem sourceReportId — usa indicators de iafLatest sem comparação
@@ -148,7 +142,10 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
 
   // 4. Buscar previousReport: primeiro doc de iafReports com ID < sourceId
   const previousReport = await getPreviousIafReport(sourceId);
-  console.log("[IAF] previousReportId:", previousReport?.id ?? "nenhum");
+  console.log("[IAF] previousReportId corrigido:", previousReport?.id ?? "nenhum");
+
+  console.log("[CP TREND] currentPoints:", currentReport?.rankingSummary?.points?.raw);
+  console.log("[CP TREND] previousPoints:", previousReport?.rankingSummary?.points?.raw);
 
   // 5. Montar indicadores para comparação
   const currentIndicators =
@@ -169,6 +166,7 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
     ...latest,
     indicators: Array.isArray(latest.indicators) ? latest.indicators : currentIndicators,
     pillarsSummary: comparisonSummary,
+    rankingSummary: currentReport?.rankingSummary ?? latest.rankingSummary,
     previousRankingSummary: previousReport?.rankingSummary,
   };
 }
