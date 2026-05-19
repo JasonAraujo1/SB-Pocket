@@ -24,8 +24,8 @@ export function NotificationPermissionCard() {
     try {
       const result = await requestNotificationPermission(currentUser.cpf);
       setState(result);
-    } catch {
-      // Erro já logado no service — não bloquear a UI
+    } catch (err) {
+      console.error("[Push] erro ao ativar notificações:", err);
     } finally {
       setRequesting(false);
     }

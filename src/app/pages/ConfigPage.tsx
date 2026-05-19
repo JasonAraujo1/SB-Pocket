@@ -204,7 +204,7 @@ export function ConfigPage() {
         onClick={() => startTour("manual")}
         className="absolute right-5 w-11 h-11 rounded-full border border-white/30 flex items-center justify-center z-10"
         style={{
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 112px)",
           backgroundColor: "rgba(255,255,255,0.18)",
           backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)",

@@ -1,73 +1,129 @@
 import { getToken, deleteToken } from "firebase/messaging";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, addDoc } from "firebase/firestore";
 import { db, getFirebaseMessaging } from "./firebase";
 
-// Gerar em: Firebase Console → Project Settings → Cloud Messaging → Certificados push da Web
-// Clique em "Gerar par de chaves" e cole a chave pública aqui.
-const VAPID_KEY = "SUBSTITUA_PELA_VAPID_KEY_DO_FIREBASE_CONSOLE";
+// ─────────────────────────────────────────────────────────────────────────────
+// VAPID KEY — obter em:
+//   Firebase Console → Project Settings → Cloud Messaging
+//   → Certificados push da Web → Gerar par de chaves
+//   Cole a chave pública abaixo.
+// ─────────────────────────────────────────────────────────────────────────────
+const VAPID_KEY = "BPhFErB4BOBxd5Ta867XJk5Avscshg251YnSRckvrJr7VF4XMy6acqFXZ2sWRuKArppsQ32MfJrkbiC8pbK6qQk";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Regras Firestore necessárias (adicionar no Firebase Console → Firestore → Rules):
+//
+//   match /users/{userId}/notificationTokens/{tokenId} {
+//     allow read, write: if true;
+//   }
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Service Worker ────────────────────────────────────────────────────────────
 
 async function getFcmSwRegistration(): Promise<ServiceWorkerRegistration | null> {
-  if (!("serviceWorker" in navigator)) return null;
+  if (!("serviceWorker" in navigator)) {
+    console.error("[Push] serviceWorker não suportado neste browser.");
+    return null;
+  }
   try {
-    // Escopo separado do VitePWA (que usa '/') para evitar conflito.
-    return await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
-      scope: "/firebase-messaging/",
-    });
+    const registration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js"
+    );
+    console.log("[Push] serviceWorkerRegistration:", registration);
+    return registration;
   } catch (err) {
     console.error("[Push] erro ao registrar SW:", err);
     return null;
   }
 }
 
-// ── Token FCM ─────────────────────────────────────────────────────────────────
-
-export async function getFcmToken(): Promise<string | null> {
-  const messaging = await getFirebaseMessaging();
-  if (!messaging) return null;
-
-  try {
-    const swRegistration = await getFcmSwRegistration();
-    if (!swRegistration) return null;
-
-    const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
-    });
-    console.log("[Push] token:", token);
-    return token || null;
-  } catch (err) {
-    console.error("[Push] erro ao obter token FCM:", err);
-    return null;
-  }
-}
+// ── Permissão + Token ─────────────────────────────────────────────────────────
 
 export async function requestNotificationPermission(
   userId: string
 ): Promise<NotificationPermission> {
-  if (!("Notification" in window)) return "denied";
+  if (!("Notification" in window)) {
+    console.warn("[Push] Notification API não disponível.");
+    return "denied";
+  }
 
-  const permission = await Notification.requestPermission();
-  console.log("[Push] permissão:", permission);
+  let permission: NotificationPermission;
+  try {
+    permission = await Notification.requestPermission();
+  } catch (err) {
+    console.error("[Push] erro ao solicitar permissão:", err);
+    return "denied";
+  }
 
-  if (permission === "granted") {
-    const token = await getFcmToken();
-    if (token) await saveUserFcmToken(userId, token);
+  console.log("[Push] permission:", permission);
+
+  if (permission !== "granted") return permission;
+
+  try {
+    await activatePushForUser(userId);
+  } catch (err) {
+    console.error("[Push] erro ao ativar notificações:", err);
   }
 
   return permission;
 }
 
-// ── Firestore — salvar/remover token ─────────────────────────────────────────
+async function activatePushForUser(userId: string): Promise<void> {
+  console.log("[Push] userId:", userId);
+
+  if (VAPID_KEY === "SUBSTITUA_PELA_VAPID_KEY_DO_FIREBASE_CONSOLE") {
+    console.error(
+      "[Push] VAPID_KEY não configurada. " +
+      "Acesse Firebase Console → Project Settings → Cloud Messaging → " +
+      "Certificados push da Web → Gerar par de chaves."
+    );
+    return;
+  }
+
+  const messaging = await getFirebaseMessaging();
+  if (!messaging) {
+    console.error("[Push] Firebase Messaging não disponível neste browser.");
+    return;
+  }
+
+  const registration = await getFcmSwRegistration();
+  if (!registration) {
+    console.error("[Push] Falha ao registrar service worker FCM.");
+    return;
+  }
+
+  let token: string;
+  try {
+    token = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+  } catch (err) {
+    console.error("[Push] erro ao gerar token FCM:", err);
+    return;
+  }
+
+  if (!token) {
+    console.error("[Push] getToken retornou token vazio.");
+    return;
+  }
+
+  console.log("[Push] token gerado:", token);
+  await saveUserFcmToken(userId, token);
+}
+
+// ── Firestore ─────────────────────────────────────────────────────────────────
 
 export async function saveUserFcmToken(userId: string, token: string): Promise<void> {
+  const now = new Date().toISOString();
+  const tokensRef = collection(db, "users", userId, "notificationTokens");
+
+  // Deduplicação: ID derivado dos últimos 28 caracteres alfanuméricos do token
+  const tokenDocId = `web_${token.replace(/[^a-zA-Z0-9]/g, "").slice(-28)}`;
+  const tokenRef = doc(tokensRef, tokenDocId);
+
   try {
-    // ID do doc derivado do token — evita duplicatas sem precisar de query
-    const tokenDocId = `web_${token.replace(/[^a-zA-Z0-9]/g, "").slice(-28)}`;
-    const tokenRef = doc(db, "users", userId, "notificationTokens", tokenDocId);
     const existing = await getDoc(tokenRef);
-    const now = new Date().toISOString();
 
     await setDoc(tokenRef, {
       token,
@@ -78,9 +134,14 @@ export async function saveUserFcmToken(userId: string, token: string): Promise<v
       active: true,
     });
 
+    console.log("[Push] token salvo no Firestore");
     console.log("[Push] token salvo para usuário:", userId);
   } catch (err) {
-    console.error("[Push] erro ao salvar token:", err);
+    console.error("[Push] erro ao salvar token no Firestore:", err);
+    console.error(
+      "[Push] Verifique as regras do Firestore: " +
+      "match /users/{userId}/notificationTokens/{tokenId} { allow read, write: if true; }"
+    );
     throw err;
   }
 }
@@ -106,7 +167,7 @@ export async function removeUserFcmToken(userId: string, token: string): Promise
   }
 }
 
-// ── Utilitário — formatar corpo da notificação (referência para n8n) ──────────
+// ── Utilitários — referência para n8n ─────────────────────────────────────────
 
 const RATING_LABELS: Record<string, string> = {
   UNCLASSIFIED: "Não classificado",
