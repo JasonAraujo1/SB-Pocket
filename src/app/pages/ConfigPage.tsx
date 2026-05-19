@@ -112,21 +112,7 @@ export function ConfigPage() {
             <p className="text-white">Configuração</p>
           </div>
 
-          <div className="flex items-center gap-1.5" data-tour="config-save">
-            <button
-              data-tour="config-help"
-              onClick={() => startTour("manual")}
-              className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center"
-              style={{
-                backgroundColor: "rgba(255,255,255,0.12)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
-              }}
-              aria-label="Abrir tutorial"
-            >
-              <CircleHelp className="w-4 h-4 text-white" />
-            </button>
-
+          <div data-tour="config-save">
             {!editMode ? (
               <button
                 ref={editBtnRef}
@@ -207,6 +193,23 @@ export function ConfigPage() {
           </div>
         )}
       </div>
+
+      {/* Botão de ajuda flutuante — canto inferior direito */}
+      <button
+        data-tour="config-help"
+        onClick={() => startTour("manual")}
+        className="absolute right-5 w-11 h-11 rounded-full border border-white/30 flex items-center justify-center z-10"
+        style={{
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
+          backgroundColor: "rgba(255,255,255,0.18)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+        }}
+        aria-label="Abrir tutorial"
+      >
+        <CircleHelp className="w-5 h-5 text-white" />
+      </button>
 
       <BottomNav />
     </ScreenContainer>
