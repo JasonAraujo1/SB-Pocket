@@ -11,6 +11,7 @@ import { IconButton } from "../components/common/IconButton";
 import { PILLARS } from "../constants/pillars";
 import { getYesterdayAndTodayActiveUsersCount } from "../../services/accessLogService";
 import { useOnboardingContext } from "../providers/OnboardingProvider";
+import { NotificationPermissionCard } from "../components/common/NotificationPermissionCard";
 
 export function ConfigPage() {
   const navigate = useNavigate();
@@ -142,6 +143,9 @@ export function ConfigPage() {
             Selecione os pilares que deseja visualizar em destaque no app
           </p>
         </div>
+
+        {/* Notificações push */}
+        <NotificationPermissionCard />
 
         {/* Toggles */}
         <div className="px-5 flex flex-col gap-3 pb-4" data-tour="config-pillars">

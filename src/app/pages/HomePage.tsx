@@ -207,7 +207,7 @@ export function HomePage() {
                 <div className="flex items-stretch gap-4">
                   {/* Coluna esquerda — Atualização */}
                   <div className="flex-1 flex flex-col gap-1">
-                    <span className="text-sm text-white/60">Atualização diária</span>
+                    <span className="text-sm text-white/60">Classificação atual</span>
                     <div className="flex items-center gap-1.5 mt-1">
                       <Medal className="w-4 h-4 text-white/70 shrink-0" />
                       <span className="text-sm text-white leading-snug">

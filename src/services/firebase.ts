@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA7HR8B7J_DKedpSOXDKzGCfJZDMKr_C8k",
@@ -13,3 +14,17 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+
+// Messaging: lazy init — só disponível em browsers com suporte a push
+let _messaging: ReturnType<typeof getMessaging> | null = null;
+
+export async function getFirebaseMessaging() {
+  if (_messaging) return _messaging;
+  try {
+    if (!(await isSupported())) return null;
+    _messaging = getMessaging(app);
+    return _messaging;
+  } catch {
+    return null;
+  }
+}
