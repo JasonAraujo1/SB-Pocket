@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Pencil } from "lucide-react";
+import { ChevronLeft, Pencil, CircleHelp } from "lucide-react";
 import { COLORS } from "../constants/colors";
 import { ROUTES } from "../routes/routes";
 import { useAuth } from "../hooks/useAuth";
@@ -10,6 +10,7 @@ import { PillarToggle } from "../components/iaf/PillarToggle";
 import { IconButton } from "../components/common/IconButton";
 import { PILLARS } from "../constants/pillars";
 import { getYesterdayAndTodayActiveUsersCount } from "../../services/accessLogService";
+import { useOnboardingContext } from "../providers/OnboardingProvider";
 
 export function ConfigPage() {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ export function ConfigPage() {
   const [editShake, setEditShake] = useState(false);
 
   const editBtnRef = useRef<HTMLButtonElement>(null);
+
+  const { startTour } = useOnboardingContext();
 
   const [accessCounts, setAccessCounts] = useState<{ yesterday: number; today: number } | null>(null);
   const [accessLoading, setAccessLoading] = useState(true);
@@ -109,24 +112,41 @@ export function ConfigPage() {
             <p className="text-white">Configuração</p>
           </div>
 
-          {!editMode ? (
+          <div className="flex items-center gap-1.5" data-tour="config-save">
             <button
-              ref={editBtnRef}
-              onClick={handleEdit}
-              className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
+              data-tour="config-help"
+              onClick={() => startTour("manual")}
+              className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center"
               style={{
                 backgroundColor: "rgba(255,255,255,0.12)",
                 backdropFilter: "blur(8px)",
                 WebkitBackdropFilter: "blur(8px)",
-                ...(editShake ? { animation: "sb-edit-shake 0.4s ease" } : {}),
               }}
-              aria-label="Editar pilares"
+              aria-label="Abrir tutorial"
             >
-              <Pencil className="w-4 h-4 text-white" />
+              <CircleHelp className="w-4 h-4 text-white" />
             </button>
-          ) : (
-            <div className="w-9 h-9" />
-          )}
+
+            {!editMode ? (
+              <button
+                ref={editBtnRef}
+                data-tour="config-edit"
+                onClick={handleEdit}
+                className="w-9 h-9 rounded-full border border-white/60 flex items-center justify-center"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                  ...(editShake ? { animation: "sb-edit-shake 0.4s ease" } : {}),
+                }}
+                aria-label="Editar pilares"
+              >
+                <Pencil className="w-4 h-4 text-white" />
+              </button>
+            ) : (
+              <div className="w-9 h-9" />
+            )}
+          </div>
         </div>
 
         {/* Title */}
@@ -138,7 +158,7 @@ export function ConfigPage() {
         </div>
 
         {/* Toggles */}
-        <div className="px-5 flex flex-col gap-3 pb-4">
+        <div className="px-5 flex flex-col gap-3 pb-4" data-tour="config-pillars">
           {PILLARS.map((p) => (
             <PillarToggle
               key={p.key}

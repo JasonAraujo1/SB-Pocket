@@ -21,6 +21,11 @@ export function BottomNav() {
             <NavLink
               key={item.to}
               to={item.to}
+              data-tour={
+                item.label === "Dados" ? "bottom-nav-dados"
+                : item.label === "Config" ? "bottom-nav-config"
+                : undefined
+              }
               className={({ isActive }) =>
                 `flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-white text-[11px] ${
                   isActive ? "opacity-100" : "opacity-60"

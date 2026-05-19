@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
   Bell,
@@ -24,6 +25,8 @@ import { PILLARS, PILLAR_KEY_MAP } from "../constants/pillars";
 import type { IafPillarCard } from "../types/iaf";
 import { formatReportTime } from "../utils/date";
 import type { IafPillarSummary } from "../types/iaf";
+import { hasSeenOnboarding, markOnboardingAsSeen } from "../hooks/useOnboarding";
+import { useOnboardingContext } from "../providers/OnboardingProvider";
 
 function getFirstName(name?: string): string {
   if (!name) return "";
@@ -97,6 +100,22 @@ export function HomePage() {
   const { preferredPillars, logout, currentUser } = useAuth();
   const firstName = getFirstName(currentUser?.name);
   const { report, loading, error, refetch } = useIafReport();
+  const { startTour } = useOnboardingContext();
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const alreadySeen = hasSeenOnboarding();
+    console.log("[Joyride] alreadySeen:", alreadySeen);
+    console.log("[Joyride] localStorage:", localStorage.getItem("sbpocket_onboarding_seen"));
+
+    if (alreadySeen) return;
+
+    // Marcar como visto ANTES de iniciar — garante que F5 ou fechamento
+    // abrupto do navegador não reexiba o tour.
+    markOnboardingAsSeen();
+    startTour("auto");
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogout = () => {
     logout();
@@ -134,7 +153,7 @@ export function HomePage() {
         </div>
 
         {/* Update card */}
-        <div className="px-5 pt-4">
+        <div className="px-5 pt-4" data-tour="home-ranking">
           <style>{`
             @keyframes sb-wiggle {
               0%, 100% { transform: rotate(0deg); }
@@ -250,7 +269,7 @@ export function HomePage() {
           <p className="text-white/90">Resumo resultados</p>
         </div>
 
-        <div className="px-5 flex flex-col gap-3 pb-4">
+        <div className="px-5 flex flex-col gap-3 pb-4" data-tour="home-pillars">
           {loading && <PageLoader />}
 
           {/* Error */}

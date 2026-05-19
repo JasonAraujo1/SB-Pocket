@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl -d Ubuntu -- bash -c \"cd '/home/usuario/programacao/SB Pocket' && npm run build 2>&1\" timeout=60000)",
+      "Bash(wsl -d Ubuntu -- bash -c \"head -5 '/home/usuario/programacao/SB Pocket/node_modules/react-joyride/dist/index.mjs'\")"
+    ]
+  }
+}
