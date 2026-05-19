@@ -40,11 +40,6 @@ export function DataPage() {
     (ind) => indicatorBelongsToPillar(ind.pillar, activePillarKey)
   );
 
-  console.log("[Dados] total indicators:", allIndicators.length);
-  console.log("[Dados] selectedPillar:", activePillarKey);
-  console.log("[Dados] filteredIndicators:", filteredIndicators.length);
-  console.log("[Dados] pillars disponíveis:", [...new Set(allIndicators.map((i) => i.pillar))]);
-
   return (
     <div
       className="relative w-full h-full flex flex-col text-white"

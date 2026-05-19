@@ -122,13 +122,9 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
   // 1. Referência da última atualização
   const latest = await getLatestIafUpdate();
   if (!latest) return null;
-  console.log("[IAF] latest:", latest);
 
   // 2. Resolver o ID do relatório atual em iafReports
-  console.log("[IAF] latest.sourceReportKey:", latest.sourceReportKey);
-  console.log("[IAF] latest.reportDateBr:", latest.reportDateBr);
   const sourceId = getCurrentReportIdFromLatest(latest);
-  console.log("[IAF] currentReportId corrigido:", sourceId);
 
   if (!sourceId) {
     // Sem sourceReportId — usa indicators de iafLatest sem comparação
@@ -138,14 +134,9 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
 
   // 3. Buscar currentReport em iafReports/{sourceId}
   const currentReport = await getReportByDate(sourceId);
-  console.log("[IAF] currentReportId:", currentReport?.id ?? "não encontrado");
 
   // 4. Buscar previousReport: primeiro doc de iafReports com ID < sourceId
   const previousReport = await getPreviousIafReport(sourceId);
-  console.log("[IAF] previousReportId corrigido:", previousReport?.id ?? "nenhum");
-
-  console.log("[CP TREND] currentPoints:", currentReport?.rankingSummary?.points?.raw);
-  console.log("[CP TREND] previousPoints:", previousReport?.rankingSummary?.points?.raw);
 
   // 5. Montar indicadores para comparação
   const currentIndicators =
@@ -160,7 +151,6 @@ export async function fetchLatestReport(): Promise<IafReport | null> {
 
   // 6. Calcular comparação
   const comparisonSummary = buildComparisonSummary(currentIndicators, previousIndicators);
-  console.log("[IAF] comparisonSummary:", comparisonSummary);
 
   return {
     ...latest,

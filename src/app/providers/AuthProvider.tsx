@@ -45,7 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SESSION_KEY, user.cpf);
     setCurrentUser(user);
     setPreferredPillars(mapPillarsToDisplay(user.selectedPillars));
-    console.log("[AccessLogs] registrando acesso:", user);
     registerDailyAccess(user).catch((err) => console.error("[AccessLogs] falha no login:", err));
     return null;
   };

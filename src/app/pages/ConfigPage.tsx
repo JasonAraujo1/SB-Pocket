@@ -35,8 +35,6 @@ export function ConfigPage() {
       setAccessError(null);
       try {
         const result = await getYesterdayAndTodayActiveUsersCount();
-        console.log("[AccessLogs] ontem:", result.yesterday);
-        console.log("[AccessLogs] hoje:", result.today);
         if (!isMounted) return;
         setAccessCounts({ yesterday: result.yesterday, today: result.today });
       } catch (error) {

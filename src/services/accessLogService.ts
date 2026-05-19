@@ -49,13 +49,8 @@ export async function registerDailyAccess(user: UserProfile): Promise<void> {
     lastAccessAtBr: formatDateTimeBr(now),
   };
 
-  console.log("[AccessLogs] dateKey:", dateKey);
-  console.log("[AccessLogs] docId:", docId);
-  console.log("[AccessLogs] payload:", payload);
-
   try {
     await setDoc(doc(db, "accessLogs", docId), payload, { merge: true });
-    console.log("[AccessLogs] acesso registrado com sucesso");
   } catch (error) {
     console.error("[AccessLogs] erro ao registrar acesso:", error);
     throw error;
@@ -75,16 +70,10 @@ export async function getYesterdayAndTodayActiveUsersCount(): Promise<{
   const todayDateKey = getDateKeyInSaoPaulo();
   const yesterdayDateKey = getYesterdayDateKeyInSaoPaulo();
 
-  console.log("[AccessLogs] buscando dateKey ontem:", yesterdayDateKey);
-  console.log("[AccessLogs] buscando dateKey hoje:", todayDateKey);
-
   const [todayCount, yesterdayCount] = await Promise.all([
     getActiveUsersCountByDate(todayDateKey),
     getActiveUsersCountByDate(yesterdayDateKey),
   ]);
-
-  console.log("[AccessLogs] resultado ontem:", yesterdayCount);
-  console.log("[AccessLogs] resultado hoje:", todayCount);
 
   return { today: todayCount, yesterday: yesterdayCount };
 }

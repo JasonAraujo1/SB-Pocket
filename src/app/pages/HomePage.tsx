@@ -76,9 +76,7 @@ function formatRating(rating?: string | null): string {
 
 function findPillarCard(cards: IafPillarCard[] | undefined, pillarKey: string): IafPillarCard | null {
   if (!cards?.length) return null;
-  const pillar = PILLARS.find((p) => p.key === pillarKey);
-  if (!pillar) return null;
-  return cards.find((c) => pillar.sourceKeys.includes(c.key)) ?? null;
+  return cards.find((c) => c.key === pillarKey) ?? null;
 }
 
 function formatPercent(value?: number | null): string {
