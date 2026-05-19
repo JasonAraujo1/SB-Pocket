@@ -2,92 +2,88 @@
 
 **PWA** · by Setor de TI · Grupo SB Monteiro
 
-O **SB Pocket — IAF Fácil** é um app de guia de bolso criado para facilitar o acompanhamento diário dos indicadores do IAF. A aplicação permite que colaboradores visualizem os resultados atualizados por pilar, acompanhem o relatório diário e configurem quais pilares desejam visualizar em destaque.
+O **SB Pocket — IAF Fácil** é uma PWA mobile para acompanhamento diário dos indicadores do IAF. Os dados são capturados da extranet do Grupo Boticário via extensão Chrome, processados pelo n8n, salvos no Firebase Firestore e exibidos no app em tempo real para os colaboradores.
 
 ![SB Pocket — Telas do app](./src/assets/readme-todas-as-telas.png)
 
 ---
 
-## Objetivo
-
-Centralizar, simplificar e tornar mais acessível o acompanhamento dos indicadores do IAF, reduzindo a dependência de consultas manuais na extranet e oferecendo uma visualização rápida dos principais resultados do dia.
-
-Fluxo geral da solução:
+## Visão geral
 
 ```txt
-Extensão da Extranet
-↓
-n8n
-↓
-Firebase Firestore
-↓
-SB Pocket
-```
-
----
-
-## Pilares do IAF
-
-O app organiza os indicadores nos seguintes pilares:
-
-- Gestão Comercial
-- Omni & Digital
-- ESG
-- Excelência Operacional
-- Gestão de Pessoas
-- Finanças
-
-Chaves internas usadas no sistema:
-
-```txt
-gestao_comercial
-omni_digital
-esg
-excelencia_operacional
-gestao_pessoas
-financas
+Extensão Chrome
+→ Extranet Grupo Boticário (APIs consolidadas do IAF)
+→ n8n (normalização e processamento)
+→ Firebase Firestore (iafReports + iafLatest)
+→ SB Pocket PWA (exibição para o colaborador)
 ```
 
 ---
 
 ## Funcionalidades principais
 
-- Login por CPF e senha.
-- Leitura de usuários cadastrados no Firebase.
-- Tela Home com resumo diário dos pilares.
-- Tela de Dados com indicadores organizados por pilar.
-- Tela de Configuração para escolha dos pilares em destaque.
-- Salvamento das preferências do usuário no Firebase.
-- Leitura do relatório mais recente salvo no Firestore.
-- Comparação entre relatório atual e relatório anterior, quando disponível.
-- Tratamento para quando não existe relatório anterior.
-- Estrutura PWA instalável via navegador.
-- Integração com n8n para atualização automática dos dados.
+- Login por CPF e senha com validação de usuário ativo no Firebase.
+- Rotas protegidas — redireciona para `/login` sem sessão ativa.
+- Home com resumo diário do IAF:
+  - Pontuação do CP com seta animada indicando alta ou queda em relação ao relatório anterior.
+  - Percentual geral do CP.
+  - Classificação/rating com ícone de medalha (`UNCLASSIFIED` exibido como "Não classificado").
+- Cards por pilar na Home com:
+  - Variação percentual em relação ao relatório anterior (`+X%` / `-X%`).
+  - Atingimento oficial e falta para meta (dados de `pillarsCards`).
+  - Média geral dos indicadores do pilar.
+  - Mensagem de comparação (subiu, caiu, estável ou sem comparação).
+  - Clique no card leva para a tela Dados já filtrada pelo pilar.
+- Tela **IAF · Relatório diário** com todos os indicadores do pilar selecionado.
+- Filtro da tela Dados respeitando os pilares escolhidos em Configurações.
+- Tela de **Configurações** para selecionar pilares acompanhados — salvo no Firebase.
+- Registro de acessos diários em `accessLogs`.
+- Rodapé de Configurações mostrando usuários ativos ontem e hoje.
+- Instalação como PWA no Android (Chrome) e iPhone (Safari).
+- Responsividade mobile com safe-area, ajuste para tablets e tela cheia em `dvh`.
+
+---
+
+## Pilares do app
+
+| Key visual | Nome exibido |
+|---|---|
+| `gestao_comercial` | Gestão Comercial |
+| `omni_digital` | Omni & Digital |
+| `esg` | ESG |
+| `excelencia_operacional` | Excelência Operacional |
+| `gestao_pessoas_financas` | Gestão de Pes. e Fin. |
+
+**"Gestão de Pes. e Fin."** é um pilar consolidado. Os indicadores chegam com as chaves:
+- `gestao_pessoas`
+- `financas`
+
+O app mapeia ambas para `gestao_pessoas_financas` ao calcular médias e comparações. O card oficial em `pillarsCards` usa a chave `gestao_pessoas_financas`.
 
 ---
 
 ## Estrutura geral do app
-
-Estrutura base esperada:
 
 ```txt
 src/
 ├── app/
 │   ├── App.tsx
 │   ├── routes/
-│   ├── layouts/
-│   ├── providers/
-│   ├── hooks/
-│   ├── pages/
+│   ├── layouts/         MobileFrame — frame responsivo para mobile e tablet
+│   ├── providers/       AuthProvider — sessão e registro de acesso
+│   ├── hooks/           useAuth, useIafReport
+│   ├── pages/           HomePage, DataPage, ConfigPage, LoginPage, SplashPage
 │   ├── components/
-│   └── types/
+│   ├── constants/       pillars.ts, colors.ts
+│   └── types/           iaf.ts, auth.ts, user.ts
 │
 ├── services/
 │   ├── firebase.ts
 │   ├── firestore.ts
 │   ├── authService.ts
 │   ├── userService.ts
-│   └── iafReportService.ts
+│   ├── iafReportService.ts
+│   └── accessLogService.ts
 │
 ├── assets/
 ├── styles/
@@ -99,147 +95,109 @@ src/
 ## Rotas principais
 
 ```txt
-/                 → Splash / Tela inicial
-/login            → Login
-/home             → Home
-/dados            → Relatório diário / Dados
-/config           → Configurações
-/notificacoes     → Notificações
-/perfil           → Perfil
-```
-
-As rotas internas devem ser protegidas. Caso o usuário tente acessar uma rota privada sem estar logado, deve ser redirecionado para `/login`.
-
----
-
-## Login
-
-O login é feito usando os usuários cadastrados na coleção `users` do Firestore.
-
-Regras esperadas:
-
-```txt
-1. Limpar o CPF digitado.
-2. Buscar o documento users/{cpfLimpo}.
-3. Se não existir, exibir "Usuário não encontrado".
-4. Se active !== true, exibir "Usuário inativo".
-5. Se a senha estiver incorreta, exibir "Senha incorreta".
-6. Se os dados estiverem corretos, liberar acesso ao app.
-```
-
-Importante:
-
-```txt
-O CPF confiável deve ser sempre o ID do documento.
-Não depender de um campo cpf interno, pois CPFs iniciados com zero podem ser convertidos de forma incorreta se tratados como número.
-```
-
-Exemplo de leitura segura no app:
-
-```ts
-return {
-  id: snapshot.id,
-  cpf: snapshot.id,
-  ...data,
-};
+/              → Splash
+/login         → Login
+/home          → Home
+/dados         → IAF · Relatório diário
+/config        → Configurações
+/notificacoes  → Notificações
 ```
 
 ---
 
-## Firebase Firestore
+## Estrutura de dados no Firebase
 
-### Coleção `users`
-
-Cada usuário é salvo como um documento na coleção `users`.
-
-O ID do documento deve ser o CPF limpo, com 11 dígitos:
+### `users`
 
 ```txt
 users/{cpf}
 ```
 
-Estrutura recomendada:
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `name` | string | Nome completo |
+| `password` | string | Senha de acesso |
+| `active` | boolean | Usuário habilitado |
+| `selectedPillars` | string[] | Pilares em destaque na Home |
 
-```json
-{
-  "name": "Nome do Usuário",
-  "password": "senha_definida",
-  "active": true,
-  "selectedPillars": [
-    "gestao_comercial",
-    "omni_digital",
-    "esg",
-    "excelencia_operacional",
-    "gestao_pessoas",
-    "financas"
-  ]
-}
-```
-
-Observação:
-
-```txt
-O campo selectedPillars não define permissão.
-Ele é apenas uma preferência visual do usuário.
-Todos os usuários logados podem acessar todos os dados do relatório.
-```
+- O CPF confiável é sempre o **ID do documento** — não depender de campo interno.
+- CPFs com zero à esquerda são preservados por serem tratados como string.
+- `selectedPillars` é preferência visual, não regra de segurança.
 
 ---
 
-### Coleção `iafReports`
-
-Cada relatório diário é salvo como documento na coleção `iafReports`.
-
-O ID do documento deve seguir o formato:
+### `iafReports`
 
 ```txt
-YYYY-MM-DD
+iafReports/{YYYY-MM-DD}
 ```
 
-Exemplo:
+Histórico diário dos relatórios. Cada documento representa um dia.
 
-```txt
-iafReports/2026-05-15
-```
-
-Estrutura esperada:
-
-```json
-{
-  "reportDate": "YYYY-MM-DD",
-  "reportDateBr": "DD/MM/YYYY",
-  "createdAt": "ISO_DATE",
-  "createdAtBr": "DD/MM/YYYY, HH:mm:ss",
-  "executedAt": "ISO_DATE",
-  "executedAtBr": "DD/MM/YYYY, HH:mm:ss",
-  "source": "chrome_extension",
-  "page": "origem_da_captura",
-  "endpoint": "endpoint_origem",
-  "indicators": [],
-  "pillarsSummary": {}
-}
-```
-
-Campos de debug podem existir durante manutenção:
-
-```json
-{
-  "debugUpdatedAt": "ISO_DATE",
-  "debugUpdatedAtBr": "DD/MM/YYYY, HH:mm:ss",
-  "debugSource": "n8n-firestore",
-  "debugRunId": "identificador_da_execucao"
-}
-```
-
-Esses campos ajudam a confirmar se o app está lendo o relatório mais recente.
+| Campo | Descrição |
+|---|---|
+| `reportDate` | Data no formato `YYYY-MM-DD` |
+| `reportDateBr` | Data no formato `DD/MM/YYYY` |
+| `createdAt` / `createdAtBr` | Criação do documento |
+| `executedAt` / `executedAtBr` | Execução da captura |
+| `updatedAt` / `updatedAtBr` | Última atualização |
+| `source` | Origem (`chrome_extension`) |
+| `page` | Página de captura |
+| `endpoint` | Endpoint origem |
+| `indicators` | Array de indicadores detalhados |
+| `pillarsSummary` | Resumo calculado por pilar |
+| `pillarsCards` | Dados consolidados oficiais por pilar |
+| `rankingSummary` | Pontuação, percentual e rating do CP |
 
 ---
 
-## Indicadores
+### `iafLatest`
 
-Cada item em `indicators` representa um indicador do IAF.
+```txt
+iafLatest/current
+```
 
-Estrutura base:
+Última atualização capturada. O front usa este documento como ponto de entrada.
+
+| Campo | Descrição |
+|---|---|
+| `reportDate` | Data no formato `DD/MM/YYYY` |
+| `reportDateBr` | Data no formato `DD/MM/YYYY` |
+| `updatedAt` / `updatedAtBr` | Timestamp da última atualização |
+| `sourceReportKey` | Chave do relatório atual (ex: `report_2026-05-19`) |
+| `indicators` | Indicadores da última captura |
+| `pillarsSummary` | Resumo por pilar |
+| `pillarsCards` | Dados oficiais consolidados por pilar |
+| `rankingSummary` | Pontuação, percentual e rating |
+
+`sourceReportKey` segue o formato `report_YYYY-MM-DD`. O front remove o prefixo `report_` para buscar o documento correspondente em `iafReports`.
+
+> **Atenção:** não converter `sourceReportId` via Timestamp para definir o ID do relatório atual — a conversão por `toISOString()` pode retroceder um dia por fuso horário. Usar sempre `sourceReportKey`.
+
+---
+
+### `accessLogs`
+
+```txt
+accessLogs/{dateKey}_{userId}
+```
+
+| Campo | Descrição |
+|---|---|
+| `dateKey` | Data no formato `YYYY-MM-DD` (fuso São Paulo) |
+| `dateBr` | Data no formato `DD/MM/YYYY` |
+| `userId` | CPF do usuário |
+| `name` | Nome do usuário |
+| `lastAccessAt` | ISO timestamp do último acesso |
+| `lastAccessAtBr` | Data/hora formatada (pt-BR) |
+
+Usado para contar usuários únicos que acessaram o app ontem e hoje. Exibido no rodapé de Configurações.
+
+---
+
+## Estrutura dos indicadores
+
+Cada item em `indicators[]` representa um indicador individual do IAF capturado da API `iaf-consolidated-indicators`.
 
 ```json
 {
@@ -249,371 +207,233 @@ Estrutura base:
   "indicador": "1.1 Nome do indicador",
   "link": "",
   "habilitador": "N/A",
-  "realizado": {
-    "tipo": "moeda",
-    "raw": 0,
-    "formatado": "R$ 0,00"
-  },
-  "pontosAtingidos": {
-    "tipo": "pontos",
-    "raw": 0,
-    "formatado": "0,00 pts"
-  },
-  "percentualAtingido": {
-    "tipo": "percentual",
-    "raw": 0,
-    "formatado": "0,00%"
-  },
-  "metaPontos": {
-    "tipo": "pontos",
-    "raw": 0,
-    "formatado": "0,00 pts"
-  },
-  "metaValor": {
-    "tipo": "moeda",
-    "raw": 0,
-    "formatado": "R$ 0,00"
-  },
-  "faltaMetaPontos": {
-    "tipo": "pontos",
-    "raw": 0,
-    "formatado": "0,00 pts"
-  },
-  "faltaMetaPercentual": {
-    "tipo": "percentual",
-    "raw": 0,
-    "formatado": "0,00%"
-  }
+  "realizado":           { "tipo": "moeda",      "raw": 0, "formatado": "R$ 0,00"  },
+  "pontosAtingidos":     { "tipo": "pontos",      "raw": 0, "formatado": "0,00 pts" },
+  "percentualAtingido":  { "tipo": "percentual",  "raw": 0, "formatado": "0,00%"   },
+  "metaPontos":          { "tipo": "pontos",      "raw": 0, "formatado": "0,00 pts" },
+  "metaValor":           { "tipo": "moeda",       "raw": 0, "formatado": "R$ 0,00"  },
+  "faltaMetaPontos":     { "tipo": "pontos",      "raw": 0, "formatado": "0,00 pts" },
+  "faltaMetaPercentual": { "tipo": "percentual",  "raw": 0, "formatado": "0,00%"   }
 }
 ```
 
----
-
-## Resumo e comparação
-
-O app deve buscar:
-
-```txt
-1. Relatório mais recente
-2. Relatório imediatamente anterior
-```
-
-A ordenação deve ser feita pelo ID do documento no formato `YYYY-MM-DD`.
-
-Exemplo:
-
-```txt
-Relatório atual: iafReports/2026-05-15
-Relatório anterior: iafReports/2026-05-14
-```
-
-A comparação é feita por pilar, usando a média de `percentualAtingido.raw`.
-
-Regras:
-
-```txt
-Atual > Anterior → Resultado alcançado se aproximou da meta
-Atual < Anterior → Resultado alcançado se distanciou da meta
-Atual = Anterior → Resultado alcançado manteve-se estável
-```
-
-Caso não exista relatório anterior:
-
-```txt
-Mostrar o relatório atual normalmente.
-Exibir mensagem: "Sem relatório anterior para comparação".
-Não tratar como erro.
-```
+Os indicadores são filtrados por pilar na tela Dados. O campo `pillar` usa as sourceKeys (`gestao_pessoas`, `financas`), que o app mapeia para a key visual (`gestao_pessoas_financas`).
 
 ---
 
-## Preferências do usuário
+## Dados consolidados por pilar
 
-A tela de Configuração permite selecionar quais pilares o usuário deseja visualizar em destaque.
+`pillarsCards[]` vem da API `iaf-consolidated-pillars` e traz os dados oficiais consolidados de cada pilar.
 
-Essas preferências são salvas em:
-
-```txt
-users/{cpf}/selectedPillars
-```
-
-Comportamento esperado:
-
-```txt
-1. Usuário entra na tela Configuração.
-2. Clica no ícone de edição.
-3. Altera os pilares desejados.
-4. Clica em "Salvar escolhas".
-5. O app atualiza apenas selectedPillars no Firestore.
-```
-
-Importante:
-
-```txt
-selectedPillars é apenas preferência visual.
-Não restringe acesso aos dados.
-```
-
----
-
-## Regras de segurança do Firestore
-
-Versão recomendada para o estágio atual do projeto:
-
-```js
-rules_version = '2';
-
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    match /iafReports/{reportId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    match /users/{userId} {
-      allow get: if true;
-      allow list: if false;
-      allow create: if false;
-      allow delete: if false;
-
-      allow update: if request.resource.data.diff(resource.data)
-        .affectedKeys()
-        .hasOnly(['selectedPillars']);
-    }
-  }
+```json
+{
+  "key": "gestao_comercial",
+  "title": "Gestão Comercial",
+  "achievement": { "raw": 45.97, "formatado": "45,97%" },
+  "untilGoal":   { "raw": 54.03, "formatado": "54,03%" }
 }
 ```
 
-Essas regras permitem:
+Usado nos cards da Home para exibir:
+- **Atingimento** — `achievement.formatado`
+- **Falta p/ Meta** — `untilGoal.formatado`
 
-```txt
-- O app ler relatórios.
-- O app buscar um usuário específico.
-- O app salvar apenas selectedPillars.
+A busca do card usa `card.key === pillar.key` (ex: `gestao_pessoas_financas`), **não** as sourceKeys individuais.
+
+---
+
+## Pontuação geral do CP
+
+`rankingSummary` vem da API `iaf-consolidated-ranking`.
+
+```json
+{
+  "points":     { "raw": 580,   "formatado": "580 pts"  },
+  "percentage": { "raw": 61.70, "formatado": "61,70%"  },
+  "rating": "UNCLASSIFIED"
+}
 ```
 
-Essas regras bloqueiam:
+Exibição na Home:
+- `points.formatado` — pontuação do CP com seta animada de tendência.
+- `percentage.formatado` — percentual abaixo da pontuação.
+- `rating` — exibido com ícone de medalha; `UNCLASSIFIED` é traduzido para "Não classificado".
+
+---
+
+## Comparações entre relatórios
+
+O `iafReportService` realiza o seguinte fluxo:
 
 ```txt
-- Escrita direta nos relatórios pelo app.
-- Listagem de todos os usuários.
-- Criação de usuários pelo app.
-- Alteração de dados sensíveis do usuário pelo app.
+1. Lê iafLatest/current
+2. Extrai currentReportId de sourceReportKey (remove prefixo "report_")
+3. Busca iafReports/{currentReportId}
+4. Busca o documento anterior: maior ID < currentReportId em iafReports
+5. Monta pillarsSummary comparando médias de percentualAtingido.raw por pilar
+6. Retorna rankingSummary do currentReport e previousRankingSummary do previousReport
 ```
 
-Observação:
+### Comparação dos pilares
 
-```txt
-O n8n grava usando Service Account.
-Por isso, ele consegue atualizar o Firestore mesmo com as escritas bloqueadas para o front.
-```
+Usa a **média de `percentualAtingido.raw`** dos indicadores de cada pilar.
+
+| Resultado | Status | Mensagem |
+|---|---|---|
+| Atual > Anterior | `up` | Resultado alcançado se aproximou da meta |
+| Atual < Anterior | `down` | Resultado alcançado se distanciou da meta |
+| Atual = Anterior | `stable` | Resultado alcançado manteve-se estável |
+| Sem anterior | `pending_comparison` | Sem relatório anterior para comparação |
+
+### Comparação da Pontuação do CP
+
+Compara `currentReport.rankingSummary.points.raw` com `previousReport.rankingSummary.points.raw`.
+
+- Ambos devem ser do tipo `number` — se algum não for, a seta não é exibida.
+- Seta para cima (verde, animação bounce): pontuação subiu.
+- Seta para baixo (vermelha, animação bounce): pontuação caiu.
+- Traço neutro: pontuação estável.
 
 ---
 
 ## n8n
 
-### Fluxo principal de relatórios
-
-Fluxo responsável por receber os dados da extensão e salvar o relatório no Firestore:
+### Fluxo de relatório IAF
 
 ```txt
 Webhook
-↓
-Preparar relatório Firebase
-↓
-Create or update a document
-↓
-Respond to Webhook
+→ Preparar relatório Firebase
+→ Create or update iafReports/{YYYY-MM-DD}
+→ Create or update iafLatest/current
+→ Respond to Webhook
 ```
 
-Responsabilidades:
-
-```txt
-Webhook:
-Recebe o payload enviado pela extensão.
-
-Preparar relatório Firebase:
-Normaliza indicadores, define pilares, gera datas formatadas e monta o objeto final.
-
-Create or update a document:
-Salva ou atualiza o relatório em iafReports/{YYYY-MM-DD}.
-
-Respond to Webhook:
-Retorna a resposta para a extensão após o processamento.
-```
+O node **"Preparar relatório Firebase"** normaliza:
+- Indicadores (`indicators[]`)
+- Dados consolidados por pilar (`pillarsCards[]`)
+- Pontuação geral (`rankingSummary`)
+- Datas (`reportDate`, `reportDateBr`, `updatedAt`, `updatedAtBr`)
+- Resumo por pilar (`pillarsSummary`)
+- Chave de referência (`sourceReportKey = "report_YYYY-MM-DD"`)
 
 ### Fluxo de importação de usuários
 
-Fluxo responsável por importar usuários em lote a partir de uma planilha:
-
 ```txt
-When clicking Execute workflow
-↓
-Google Sheets - Get row(s)
-↓
-preparar usuarios
-↓
-Create or update a document
+Google Sheets
+→ Preparar usuários
+→ Create or update users/{cpf}
 ```
 
-Responsabilidades:
-
-```txt
-Google Sheets:
-Lê os colaboradores da planilha.
-
-preparar usuarios:
-Normaliza nome, CPF, senha, status e pilares padrão.
-
-Create or update a document:
-Cria ou atualiza documentos em users/{cpf}.
-```
+- CPF deve ser tratado como string com 11 dígitos (zero à esquerda preservado).
+- Senha inicial definida por regra interna — não expor exemplos reais.
+- `selectedPillars` é inserido com os pilares padrão do app.
 
 ### Versões estáveis registradas
 
 ```txt
-N8N versão estável: "1 teste sbpocket" — May 15, 11:02:22
-N8N versão estável: "Versão adição de cpf" — May 15, 16:35:21
+"1 teste sbpocket"      — May 15, 11:02:22
+"Versão adição de cpf"  — May 15, 16:35:21
+"Versão c6dd50c9"       — May 18, 09:50:53
+"Versão f1c16a3a"       — May 18, 17:04:57
 ```
 
 ---
 
-## Importação de usuários
+## Extensão Chrome
 
-Estrutura esperada da planilha:
+A extensão captura dados da Extranet **apenas por ação manual do usuário** (clique no botão).
 
-```txt
-nome | cpf | senha
-```
+APIs capturadas:
+- `iaf-consolidated-indicators`
+- `iaf-consolidated-pillars`
+- `iaf-consolidated-ranking`
 
-A senha pode seguir o padrão:
-
-```txt
-3 primeiros números do CPF + @ + primeiro nome
-```
-
-Exemplo conceitual:
+Payload enviado ao n8n:
 
 ```txt
-CPF: 00000000000
-Nome: Nome Exemplo
-Senha: 000@nome
+origem, destino, pagina, endpoint, executadoEm
+indicadores, pillarsCards, rankingSummary
 ```
 
-O CPF deve ser normalizado com 11 dígitos:
+Regras:
+- Não enviar automaticamente ao abrir o navegador.
+- Enviar apenas ao clicar no botão da extensão.
+- Aguardar todos os endpoints responderem antes do envio.
+- Evitar duplicidade de envio.
 
-```js
-function cleanCpf(cpf) {
-  const onlyNumbers = String(cpf ?? "").replace(/\D/g, "");
-  return onlyNumbers.padStart(11, "0");
-}
+---
+
+## Regras de segurança do Firebase
+
+Visão conceitual das permissões:
+
+| Ação | App | n8n (Service Account) |
+|---|---|---|
+| Ler relatórios (`iafReports`, `iafLatest`) | ✅ | ✅ |
+| Gravar relatórios | ❌ | ✅ |
+| Buscar usuário específico | ✅ | ✅ |
+| Listar todos os usuários | ❌ | ✅ |
+| Criar/deletar usuários | ❌ | ✅ |
+| Atualizar `selectedPillars` | ✅ | ✅ |
+| Atualizar outros campos do usuário | ❌ | ✅ |
+| Criar/atualizar `accessLogs` | ✅ | ✅ |
+
+O n8n grava via Service Account, que não é afetado pelas regras do Firestore Security Rules.
+
+---
+
+## PWA e Deploy
+
+- Projeto hospedado na **Vercel**.
+- Domínio próprio pode ser apontado via DNS para a Vercel.
+- HTTPS obrigatório para service worker e instalação PWA.
+- Android: instalar pelo Chrome ("Adicionar à tela inicial").
+- iPhone: instalar pelo Safari ("Adicionar à Tela de Início").
+
+```bash
+npm install       # instalar dependências
+npm run dev       # desenvolvimento local
+npm run build     # build de produção
+npm run preview   # pré-visualizar build
 ```
 
-No Firestore, o CPF deve ser usado como ID do documento:
+Ao alterar o manifest ou ícones PWA, limpar cache do service worker:
 
 ```txt
-users/{cpf}
-```
-
-Recomendação:
-
-```txt
-Não salvar o CPF como campo interno.
-Usar o ID do documento como CPF confiável.
+DevTools → Application → Service Workers → Unregister
+DevTools → Application → Storage → Clear site data
 ```
 
 ---
 
-## Rodando o projeto
+## Manutenção e cuidados
 
-Instalar dependências:
-
-```bash
-npm i
-```
-
-Rodar em desenvolvimento:
-
-```bash
-npm run dev
-```
-
-Gerar build de produção:
-
-```bash
-npm run build
-```
-
-Pré-visualizar build:
-
-```bash
-npm run preview
-```
-
----
-
-## PWA
-
-O app pode ser instalado pelo navegador.
-
-No Chrome ou Edge:
-
-```txt
-Abrir o app
-↓
-Menu do navegador
-↓
-Instalar app / Adicionar à tela inicial
-```
-
-Caso alterações recentes não apareçam, pode ser necessário limpar cache da PWA:
-
-```txt
-DevTools
-↓
-Application
-↓
-Service Workers
-↓
-Unregister
-↓
-Storage
-↓
-Clear site data
-```
-
----
-
-## Cuidados de manutenção
-
-- Não expor URLs sensíveis, tokens, chaves privadas ou credenciais no README.
-- Não subir arquivos `.env` ou chaves de Service Account para o GitHub.
-- Não usar dados reais de CPF/senha em exemplos públicos.
-- Não depender do campo `date` do Firestore para exibir a data principal.
-- Usar `reportDateBr`, `reportDate` ou o ID do documento.
-- Usar o ID do documento como CPF confiável.
-- Manter o fluxo de relatórios separado do fluxo de importação de usuários.
-- Validar alterações primeiro em poucos registros antes de executar em lote.
-- Evitar deixar regras como `allow read, write: if true`.
+- [ ] Não expor `.env`, service account, webhooks ou chaves no repositório.
+- [ ] Não subir `node_modules`.
+- [ ] Não usar CPFs ou senhas reais em exemplos públicos.
+- [ ] Conferir se `iafLatest/current` tem `sourceReportKey` atualizado após cada captura.
+- [ ] Conferir se `iafReports` contém o relatório atual e o anterior para comparação.
+- [ ] Confirmar que `rankingSummary` existe nos dois relatórios para a seta da Pontuação do CP.
+- [ ] Confirmar que `pillarsCards` contém a chave `gestao_pessoas_financas` para o card consolidado.
+- [ ] Não usar Timestamp para derivar o ID do relatório atual — usar sempre `sourceReportKey`.
+- [ ] Limpar cache/reinstalar PWA após alterar manifest ou ícones.
+- [ ] Validar o Firestore após alterações no n8n antes de liberar para usuários.
 
 ---
 
 ## Status atual
 
-- App convertido em PWA.
-- Firebase conectado.
-- Login com usuários do Firestore funcionando.
-- Relatórios sendo salvos em `iafReports`.
-- App lendo relatório atualizado.
-- Preferências de pilares sendo salvas em `selectedPillars`.
-- Importação de usuários em lote via Google Sheets e n8n funcionando.
-- Regras de segurança ajustadas para reduzir risco de escrita indevida.
-
----
-### Versões N8N:
- - N8N versão estáve:  "1 teste sbpocket" - May 15, 11:02:22
- - N8N versão estáve: " Versão adicção de cpf" - May 15, 16:35:21
- - N8N versão estáve: " Versão c6dd50c9" - May 18, 09:50:53
- - N8N versão estáve: " Versão f1c16a3a" - May 18, 17:04:57
-
+- [x] Login com validação de usuário ativo no Firebase funcionando.
+- [x] Rotas protegidas implementadas.
+- [x] n8n gravando relatórios em `iafReports` e `iafLatest/current`.
+- [x] `sourceReportKey` usado como fonte principal do ID do relatório atual.
+- [x] Comparação entre relatório atual e anterior funcionando.
+- [x] Cards por pilar com dados oficiais de `pillarsCards` funcionando.
+- [x] Atingimento e Falta p/ Meta exibidos nos cards da Home.
+- [x] `rankingSummary` integrado com seta animada de tendência.
+- [x] Pilar "Gestão de Pes. e Fin." unificando `gestao_pessoas` e `financas`.
+- [x] `accessLogs` registrando acessos diários.
+- [x] Contador de usuários ativos ontem/hoje em Configurações.
+- [x] PWA publicada e compatível com Android e iPhone.
+- [x] Filtros por pilares funcionando na Home e na tela Dados.
+- [x] Responsividade ajustada para mobile, tablet 10,2" e tablet de alta resolução.
