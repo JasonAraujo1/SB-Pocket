@@ -8,8 +8,8 @@ import {
   RefreshCw,
   LogOut,
   Medal,
-  ArrowUpRight,
-  ArrowDownRight,
+  ArrowUp,
+  ArrowDown,
   Minus,
 } from "lucide-react";
 import sbLogo from "../../assets/C_pia_de_PADR_O_SB_LAYOUT_ONEPAGES__1080_x_1080_px_.png";
@@ -145,6 +145,14 @@ export function HomePage() {
               from { transform: rotate(0deg); }
               to { transform: rotate(360deg); }
             }
+            @keyframes sb-bounce-up {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-4px); }
+            }
+            @keyframes sb-bounce-down {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(4px); }
+            }
           `}</style>
           <div className="border border-white/60 rounded-2xl p-5 text-white">
             {/* Ícone central no topo */}
@@ -168,9 +176,13 @@ export function HomePage() {
               const prev = report?.previousRankingSummary;
               const trend = getPointsTrend(rs?.points.raw, prev?.points.raw);
               const TrendIcon =
-                trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
+                trend === "up" ? ArrowUp : trend === "down" ? ArrowDown : Minus;
               const trendColor =
                 trend === "up" ? "#34d399" : trend === "down" ? "#f87171" : "rgba(255,255,255,0.35)";
+              const trendAnimation =
+                trend === "up" ? "sb-bounce-up 0.9s ease-in-out infinite"
+                : trend === "down" ? "sb-bounce-down 0.9s ease-in-out infinite"
+                : undefined;
 
               return (
                 <div className="flex items-stretch gap-4">
@@ -196,7 +208,7 @@ export function HomePage() {
                         {rs?.points.formatado ?? "—"}
                       </span>
                       {trend !== "none" && (
-                        <TrendIcon className="w-4 h-4 shrink-0" style={{ color: trendColor }} />
+                        <TrendIcon className="w-4 h-4 shrink-0" style={{ color: trendColor, animation: trendAnimation }} />
                       )}
                     </div>
                     <span className="text-sm text-white/75">
