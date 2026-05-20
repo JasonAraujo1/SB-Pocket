@@ -31,7 +31,7 @@ service cloud.firestore {
       }
     }
 
-    // Tokens FCM globais — legado
+    // Tokens FCM globais (legado)
     match /pushTokens/{tokenId} {
       allow read, write: if true;
     }
@@ -41,15 +41,9 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Logs de acesso
+    // Logs de acesso diário
     match /accessLogs/{logId} {
-      allow read: if true;
-      allow create: if request.resource.data.keys().hasAll(["userId", "timestamp"])
-                    && request.resource.data.keys().hasOnly([
-                         "userId", "timestamp", "userAgent", "platform", "isStandalone"
-                       ]);
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(["timestamp", "userAgent", "platform", "isStandalone"]);
+      allow read, write: if true;
     }
 
   }

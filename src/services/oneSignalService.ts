@@ -6,12 +6,12 @@ const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID as string | undef
 
 let initialized = false;
 
-export async function initOneSignal(): Promise<void> {
-  if (initialized) return;
+export async function initOneSignal(): Promise<boolean> {
+  if (initialized) return true;
 
   if (!ONESIGNAL_APP_ID) {
     console.error("[OneSignal] VITE_ONESIGNAL_APP_ID não configurado.");
-    return;
+    return false;
   }
 
   await OneSignal.init({
@@ -23,31 +23,40 @@ export async function initOneSignal(): Promise<void> {
 
   initialized = true;
   console.log("[OneSignal] inicializado");
+  return true;
 }
 
 export async function requestOneSignalPermission(
   userId: string,
   userName = ""
-): Promise<{ permission: boolean; subscriptionId: string | undefined; optedIn: boolean | undefined }> {
-  await initOneSignal();
+): Promise<{ permission: boolean; subscriptionId: string | undefined | null; optedIn: boolean | undefined }> {
+  console.log("[OneSignal] usando fluxo principal de notificações");
+
+  const ok = await initOneSignal();
+  if (!ok) {
+    return { permission: false, subscriptionId: null, optedIn: false };
+  }
 
   const permission = await OneSignal.Notifications.requestPermission();
   console.log("[OneSignal] permission:", permission);
 
+  if (userId) {
+    await OneSignal.login(userId);
+  }
+
+  // Aguarda propagação do login antes de ler o subscriptionId
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  const subscriptionId = OneSignal.User.PushSubscription.id;
+  const optedIn = OneSignal.User.PushSubscription.optedIn;
   const userAgent = navigator.userAgent;
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-  const subscriptionId = OneSignal.User.PushSubscription.id;
-  const optedIn = OneSignal.User.PushSubscription.optedIn;
-
   console.log("[OneSignal] subscriptionId:", subscriptionId);
   console.log("[OneSignal] optedIn:", optedIn);
-
-  if (userId) {
-    await OneSignal.login(userId);
-  }
+  console.log("[OneSignal] isStandalone:", isStandalone);
 
   const now = new Date().toISOString();
 
@@ -72,6 +81,8 @@ export async function requestOneSignalPermission(
     ]);
 
     console.log("[OneSignal] subscription salva no Firestore");
+  } else {
+    console.warn("[OneSignal] subscriptionId ainda não disponível após permissão.");
   }
 
   return { permission, subscriptionId, optedIn };
@@ -82,7 +93,10 @@ export async function getOneSignalStatus(): Promise<{
   subscriptionId: string | undefined;
   optedIn: boolean | undefined;
 }> {
-  await initOneSignal();
+  const ok = await initOneSignal();
+  if (!ok) {
+    return { permission: false, subscriptionId: undefined, optedIn: false };
+  }
 
   return {
     permission: OneSignal.Notifications.permission,

@@ -7,7 +7,7 @@ type PermissionState = NotificationPermission | "unsupported" | "loading";
 
 export function NotificationPermissionCard() {
   const { currentUser } = useAuth();
-  const [state, setState] = useState<PermissionState>("default");
+  const [state, setState] = useState<PermissionState>("loading");
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
@@ -15,7 +15,20 @@ export function NotificationPermissionCard() {
       setState("unsupported");
       return;
     }
-    setState(Notification.permission);
+
+    if (Notification.permission === "denied") {
+      setState("denied");
+      return;
+    }
+
+    // Consulta status real do OneSignal (init silencioso na montagem)
+    getOneSignalStatus()
+      .then((status) => {
+        setState(status.optedIn ? "granted" : Notification.permission);
+      })
+      .catch(() => {
+        setState(Notification.permission);
+      });
   }, []);
 
   async function handleActivate() {
@@ -64,6 +77,11 @@ export function NotificationPermissionCard() {
               Para ativar, libere a permissão nas configurações do site no seu navegador.
             </p>
           </div>
+        </div>
+      ) : state === "loading" ? (
+        <div className="flex items-center gap-3">
+          <Bell className="w-5 h-5 text-white/40 shrink-0" />
+          <p className="text-white/60 text-xs">Verificando notificações...</p>
         </div>
       ) : (
         <div className="flex items-start gap-3">
