@@ -22,7 +22,7 @@ export function NotificationPermissionCard() {
     if (!currentUser || requesting) return;
     setRequesting(true);
     try {
-      const result = await requestNotificationPermission(currentUser.cpf);
+      const result = await requestNotificationPermission(currentUser.cpf, currentUser.name);
       setState(result);
     } catch (err) {
       console.error("[Push] erro ao ativar notificações:", err);

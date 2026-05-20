@@ -1,46 +1,25 @@
 import { getToken, deleteToken } from "firebase/messaging";
-import { collection, doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db, getFirebaseMessaging, firebaseConfig } from "./firebase";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VAPID KEY — obter em:
-//   Firebase Console → Project Settings → Cloud Messaging
-//   → Certificados push da Web → Gerar par de chaves
-//   Cole a chave pública abaixo.
+// VAPID KEY — Firebase Console → Project Settings → Cloud Messaging
+//             → Web Push certificates → Key pair
 // ─────────────────────────────────────────────────────────────────────────────
-const VAPID_KEY = "BPhFErB4BOBxd5Ta867XJk5Avscshg251YnSRckvrJr7VF4XMy6acqFXZ2sWRuKArppsQ32MfJrkbiC8pbK6qQk";
+const VAPID_KEY =
+  "BPhFErB4BOBxd5Ta867XJk5Avscshg251YnSRckvrJr7VF4XMy6acqFXZ2sWRuKArppsQ32MfJrkbiC8pbK6qQk";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Regras Firestore necessárias (adicionar no Firebase Console → Firestore → Rules):
-//
-//   match /users/{userId}/notificationTokens/{tokenId} {
-//     allow read, write: if true;
-//   }
+// Regras Firestore necessárias:
+//   match /users/{userId}/notificationTokens/{tokenId} { allow read, write: if true; }
+//   match /pushTokens/{tokenId} { allow read, write: if true; }
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ── Service Worker ────────────────────────────────────────────────────────────
-
-async function getFcmSwRegistration(): Promise<ServiceWorkerRegistration | null> {
-  if (!("serviceWorker" in navigator)) {
-    console.error("[Push] serviceWorker não suportado neste browser.");
-    return null;
-  }
-  try {
-    const registration = await navigator.serviceWorker.register(
-      "/firebase-messaging-sw.js"
-    );
-    console.log("[Push] serviceWorkerRegistration:", registration);
-    return registration;
-  } catch (err) {
-    console.error("[Push] erro ao registrar SW:", err);
-    return null;
-  }
-}
 
 // ── Permissão + Token ─────────────────────────────────────────────────────────
 
 export async function requestNotificationPermission(
-  userId: string
+  userId: string,
+  userName = ""
 ): Promise<NotificationPermission> {
   if (!("Notification" in window)) {
     console.warn("[Push] Notification API não disponível.");
@@ -56,11 +35,12 @@ export async function requestNotificationPermission(
   }
 
   console.log("[Push] permission:", permission);
+  console.log("[Push] userId:", userId);
 
   if (permission !== "granted") return permission;
 
   try {
-    await activatePushForUser(userId);
+    await activatePushForUser(userId, userName);
   } catch (err) {
     console.error("[Push] erro ao ativar notificações:", err);
   }
@@ -68,35 +48,26 @@ export async function requestNotificationPermission(
   return permission;
 }
 
-async function activatePushForUser(userId: string): Promise<void> {
-  console.log("[Push] userId:", userId);
-
-  if (VAPID_KEY === "SUBSTITUA_PELA_VAPID_KEY_DO_FIREBASE_CONSOLE") {
-    console.error(
-      "[Push] VAPID_KEY não configurada. " +
-      "Acesse Firebase Console → Project Settings → Cloud Messaging → " +
-      "Certificados push da Web → Gerar par de chaves."
-    );
-    return;
-  }
-
+async function activatePushForUser(userId: string, userName: string): Promise<void> {
   const messaging = await getFirebaseMessaging();
   if (!messaging) {
     console.error("[Push] Firebase Messaging não disponível neste browser.");
     return;
   }
 
-  // Apagar token anterior para forçar renovação real
   try {
     await deleteToken(messaging);
     console.log("[Push] token anterior deletado.");
-  } catch {
-    console.warn("[Push] nenhum token anterior para deletar.");
+  } catch (error) {
+    console.warn("[Push] não foi possível deletar token anterior:", error);
   }
 
-  const registration = await getFcmSwRegistration();
-  if (!registration) {
-    console.error("[Push] Falha ao registrar service worker FCM.");
+  let registration: ServiceWorkerRegistration;
+  try {
+    registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    console.log("[Push] serviceWorkerRegistration:", registration);
+  } catch (err) {
+    console.error("[Push] erro ao registrar service worker:", err);
     return;
   }
 
@@ -116,64 +87,102 @@ async function activatePushForUser(userId: string): Promise<void> {
     return;
   }
 
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
   console.log("[Push] projectId:", firebaseConfig.projectId);
   console.log("[Push] messagingSenderId:", firebaseConfig.messagingSenderId);
-  console.log("[Push] vapidKey prefix:", VAPID_KEY.slice(0, 12));
+  console.log("[Push] isStandalone:", isStandalone);
   console.log("[Push] token novo:", token);
-  console.log("[Push] userAgent:", navigator.userAgent);
 
-  await saveUserFcmToken(userId, token);
+  await saveFcmToken(userId, userName, token, isStandalone);
 }
 
 // ── Firestore ─────────────────────────────────────────────────────────────────
 
-export async function saveUserFcmToken(userId: string, token: string): Promise<void> {
+function makeTokenId(token: string): string {
+  return `web_${token.replace(/[^a-zA-Z0-9]/g, "").slice(-28)}`;
+}
+
+async function saveFcmToken(
+  userId: string,
+  userName: string,
+  token: string,
+  isStandalone: boolean
+): Promise<void> {
   const now = new Date().toISOString();
-  const tokensRef = collection(db, "users", userId, "notificationTokens");
+  const tokenId = makeTokenId(token);
 
-  // Deduplicação: ID derivado dos últimos 28 caracteres alfanuméricos do token
-  const tokenDocId = `web_${token.replace(/[^a-zA-Z0-9]/g, "").slice(-28)}`;
-  const tokenRef = doc(tokensRef, tokenDocId);
+  const userTokenRef = doc(db, "users", userId, "notificationTokens", tokenId);
+  const globalTokenRef = doc(db, "pushTokens", tokenId);
 
-  try {
-    const existing = await getDoc(tokenRef);
+  const [existingUser, existingGlobal] = await Promise.all([
+    getDoc(userTokenRef),
+    getDoc(globalTokenRef),
+  ]);
 
-    await setDoc(tokenRef, {
-      token,
-      active: true,
-      platform: "web",
-      userAgent: navigator.userAgent,
-      projectId: firebaseConfig.projectId,
-      messagingSenderId: firebaseConfig.messagingSenderId,
-      createdAt: existing.exists() ? (existing.data().createdAt ?? now) : now,
-      updatedAt: now,
-    });
+  const payload = {
+    token,
+    userId,
+    name: userName,
+    active: true,
+    platform: "web",
+    userAgent: navigator.userAgent,
+    projectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    isStandalone,
+    notificationPermission: Notification.permission,
+    updatedAt: now,
+  };
 
-    console.log("[Push] token salvo no Firestore");
-    console.log("[Push] token salvo para usuário:", userId);
-  } catch (err) {
-    console.error("[Push] erro ao salvar token no Firestore:", err);
-    console.error(
-      "[Push] Verifique as regras do Firestore: " +
-      "match /users/{userId}/notificationTokens/{tokenId} { allow read, write: if true; }"
-    );
-    throw err;
-  }
+  await Promise.all([
+    setDoc(userTokenRef, {
+      ...payload,
+      createdAt: existingUser.exists() ? (existingUser.data().createdAt ?? now) : now,
+    }),
+    setDoc(globalTokenRef, {
+      ...payload,
+      createdAt: existingGlobal.exists() ? (existingGlobal.data().createdAt ?? now) : now,
+    }),
+  ]);
+
+  console.log("[Push] token salvo em users/{cpf}/notificationTokens");
+  console.log("[Push] token salvo em pushTokens");
+}
+
+// Mantido como export para compatibilidade com chamadas externas
+export async function saveUserFcmToken(
+  userId: string,
+  userName: string,
+  token: string
+): Promise<void> {
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+  await saveFcmToken(userId, userName, token, isStandalone);
 }
 
 export async function removeUserFcmToken(userId: string, token: string): Promise<void> {
   try {
-    const tokenDocId = `web_${token.replace(/[^a-zA-Z0-9]/g, "").slice(-28)}`;
-    const tokenRef = doc(db, "users", userId, "notificationTokens", tokenDocId);
-    const existing = await getDoc(tokenRef);
+    const now = new Date().toISOString();
+    const tokenId = makeTokenId(token);
+    const userTokenRef = doc(db, "users", userId, "notificationTokens", tokenId);
+    const globalTokenRef = doc(db, "pushTokens", tokenId);
 
-    if (existing.exists()) {
-      await setDoc(tokenRef, {
-        ...existing.data(),
-        active: false,
-        updatedAt: new Date().toISOString(),
-      });
-    }
+    const [existingUser, existingGlobal] = await Promise.all([
+      getDoc(userTokenRef),
+      getDoc(globalTokenRef),
+    ]);
+
+    await Promise.all([
+      existingUser.exists()
+        ? setDoc(userTokenRef, { ...existingUser.data(), active: false, updatedAt: now })
+        : Promise.resolve(),
+      existingGlobal.exists()
+        ? setDoc(globalTokenRef, { ...existingGlobal.data(), active: false, updatedAt: now })
+        : Promise.resolve(),
+    ]);
 
     const messaging = await getFirebaseMessaging();
     if (messaging) await deleteToken(messaging);
