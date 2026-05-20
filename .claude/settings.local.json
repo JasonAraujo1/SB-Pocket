@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(wsl -d Ubuntu -- bash -c \"cd '/home/usuario/programacao/SB Pocket' && npm run build 2>&1\" timeout=60000)",
-      "Bash(wsl -d Ubuntu -- bash -c \"head -5 '/home/usuario/programacao/SB Pocket/node_modules/react-joyride/dist/index.mjs'\")"
+      "Bash(wsl -d Ubuntu -- bash -c \"head -5 '/home/usuario/programacao/SB Pocket/node_modules/react-joyride/dist/index.mjs'\")",
+      "PowerShell(wsl -e bash -c \"export NVM_DIR='/home/usuario/.nvm' && source /home/usuario/.nvm/nvm.sh && nvm use 20 --silent && cd '/home/usuario/programacao/SB Pocket' && npm run build 2>&1\")",
+      "PowerShell(wsl -e bash -c \"cd '/home/usuario/programacao/SB Pocket' && git push 2>&1\")"
     ]
   }
 }
