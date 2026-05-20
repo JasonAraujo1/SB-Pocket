@@ -1,6 +1,6 @@
 import { getToken, deleteToken } from "firebase/messaging";
-import { collection, doc, getDoc, setDoc, addDoc } from "firebase/firestore";
-import { db, getFirebaseMessaging } from "./firebase";
+import { collection, doc, getDoc, setDoc } from "firebase/firestore";
+import { db, getFirebaseMessaging, firebaseConfig } from "./firebase";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // VAPID KEY — obter em:
@@ -86,6 +86,14 @@ async function activatePushForUser(userId: string): Promise<void> {
     return;
   }
 
+  // Apagar token anterior para forçar renovação real
+  try {
+    await deleteToken(messaging);
+    console.log("[Push] token anterior deletado.");
+  } catch {
+    console.warn("[Push] nenhum token anterior para deletar.");
+  }
+
   const registration = await getFcmSwRegistration();
   if (!registration) {
     console.error("[Push] Falha ao registrar service worker FCM.");
@@ -108,7 +116,12 @@ async function activatePushForUser(userId: string): Promise<void> {
     return;
   }
 
-  console.log("[Push] token gerado:", token);
+  console.log("[Push] projectId:", firebaseConfig.projectId);
+  console.log("[Push] messagingSenderId:", firebaseConfig.messagingSenderId);
+  console.log("[Push] vapidKey prefix:", VAPID_KEY.slice(0, 12));
+  console.log("[Push] token novo:", token);
+  console.log("[Push] userAgent:", navigator.userAgent);
+
   await saveUserFcmToken(userId, token);
 }
 
@@ -127,11 +140,13 @@ export async function saveUserFcmToken(userId: string, token: string): Promise<v
 
     await setDoc(tokenRef, {
       token,
+      active: true,
       platform: "web",
       userAgent: navigator.userAgent,
+      projectId: firebaseConfig.projectId,
+      messagingSenderId: firebaseConfig.messagingSenderId,
       createdAt: existing.exists() ? (existing.data().createdAt ?? now) : now,
       updatedAt: now,
-      active: true,
     });
 
     console.log("[Push] token salvo no Firestore");

@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getMessaging, isSupported } from "firebase/messaging";
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyA7HR8B7J_DKedpSOXDKzGCfJZDMKr_C8k",
   authDomain: "sb-pocket.firebaseapp.com",
   projectId: "sb-pocket",
