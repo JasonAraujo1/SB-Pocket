@@ -20,14 +20,24 @@ service cloud.firestore {
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
                        .hasOnly(["selectedPillars"]);
 
-      // Tokens de push por usuário
+      // Tokens FCM por usuário (legado)
       match /notificationTokens/{tokenId} {
+        allow read, write: if true;
+      }
+
+      // Subscriptions OneSignal por usuário
+      match /oneSignalSubscriptions/{subscriptionId} {
         allow read, write: if true;
       }
     }
 
-    // Tokens globais de push — usado pelo n8n
+    // Tokens FCM globais — legado
     match /pushTokens/{tokenId} {
+      allow read, write: if true;
+    }
+
+    // Subscriptions OneSignal globais — usado pelo n8n
+    match /oneSignalSubscriptions/{subscriptionId} {
       allow read, write: if true;
     }
 

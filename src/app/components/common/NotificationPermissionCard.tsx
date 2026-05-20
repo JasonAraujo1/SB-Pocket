@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Bell, BellOff, CheckCircle2 } from "lucide-react";
-import { requestNotificationPermission } from "../../../services/pushNotificationService";
+import { requestOneSignalPermission, getOneSignalStatus } from "../../../services/oneSignalService";
 import { useAuth } from "../../hooks/useAuth";
 
 type PermissionState = NotificationPermission | "unsupported" | "loading";
@@ -13,19 +13,21 @@ export function NotificationPermissionCard() {
   useEffect(() => {
     if (!("Notification" in window)) {
       setState("unsupported");
-    } else {
-      setState(Notification.permission);
+      return;
     }
+    setState(Notification.permission);
   }, []);
 
   async function handleActivate() {
     if (!currentUser || requesting) return;
     setRequesting(true);
     try {
-      const result = await requestNotificationPermission(currentUser.cpf, currentUser.name);
-      setState(result);
+      const result = await requestOneSignalPermission(currentUser.cpf, currentUser.name);
+      console.log("[OneSignal] status", result);
+      setState(result.permission ? "granted" : Notification.permission);
     } catch (err) {
-      console.error("[Push] erro ao ativar notificações:", err);
+      console.error("[OneSignal] erro ao ativar notificações:", err);
+      setState(Notification.permission);
     } finally {
       setRequesting(false);
     }
@@ -44,7 +46,6 @@ export function NotificationPermissionCard() {
       }}
     >
       {state === "granted" ? (
-        /* Ativado */
         <div className="flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-300 shrink-0" />
           <div>
@@ -55,7 +56,6 @@ export function NotificationPermissionCard() {
           </div>
         </div>
       ) : state === "denied" ? (
-        /* Bloqueado pelo usuário */
         <div className="flex items-start gap-3">
           <BellOff className="w-5 h-5 text-white/50 shrink-0 mt-0.5" />
           <div>
@@ -66,7 +66,6 @@ export function NotificationPermissionCard() {
           </div>
         </div>
       ) : (
-        /* Padrão — ainda não solicitado */
         <div className="flex items-start gap-3">
           <Bell className="w-5 h-5 text-white/80 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
