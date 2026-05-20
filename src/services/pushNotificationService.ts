@@ -62,10 +62,17 @@ async function activatePushForUser(userId: string, userName: string): Promise<vo
     console.warn("[Push] não foi possível deletar token anterior:", error);
   }
 
+  console.log("[Push] firebaseConfig:", {
+    projectId: firebaseConfig.projectId,
+    messagingSenderId: firebaseConfig.messagingSenderId,
+    appId: firebaseConfig.appId,
+  });
+  console.log("[Push] vapidKey prefix:", VAPID_KEY.slice(0, 12));
+
   let registration: ServiceWorkerRegistration;
   try {
     registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-    console.log("[Push] serviceWorkerRegistration:", registration);
+    console.log("[Push] service worker scope:", registration.scope);
   } catch (err) {
     console.error("[Push] erro ao registrar service worker:", err);
     return;
@@ -91,10 +98,9 @@ async function activatePushForUser(userId: string, userName: string): Promise<vo
     window.matchMedia("(display-mode: standalone)").matches ||
     (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-  console.log("[Push] projectId:", firebaseConfig.projectId);
-  console.log("[Push] messagingSenderId:", firebaseConfig.messagingSenderId);
-  console.log("[Push] isStandalone:", isStandalone);
   console.log("[Push] token novo:", token);
+  console.log("[Push] isStandalone:", isStandalone);
+  console.log("[Push] permission:", Notification.permission);
 
   await saveFcmToken(userId, userName, token, isStandalone);
 }
@@ -131,20 +137,24 @@ async function saveFcmToken(
     userAgent: navigator.userAgent,
     projectId: firebaseConfig.projectId,
     messagingSenderId: firebaseConfig.messagingSenderId,
+    appId: firebaseConfig.appId,
+    vapidKeyPrefix: VAPID_KEY.slice(0, 12),
     isStandalone,
     notificationPermission: Notification.permission,
     updatedAt: now,
   };
 
   await Promise.all([
-    setDoc(userTokenRef, {
-      ...payload,
-      createdAt: existingUser.exists() ? (existingUser.data().createdAt ?? now) : now,
-    }),
-    setDoc(globalTokenRef, {
-      ...payload,
-      createdAt: existingGlobal.exists() ? (existingGlobal.data().createdAt ?? now) : now,
-    }),
+    setDoc(
+      userTokenRef,
+      { ...payload, createdAt: existingUser.exists() ? (existingUser.data().createdAt ?? now) : now },
+      { merge: true }
+    ),
+    setDoc(
+      globalTokenRef,
+      { ...payload, createdAt: existingGlobal.exists() ? (existingGlobal.data().createdAt ?? now) : now },
+      { merge: true }
+    ),
   ]);
 
   console.log("[Push] token salvo em users/{cpf}/notificationTokens");
