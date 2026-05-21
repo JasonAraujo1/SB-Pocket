@@ -1,5 +1,5 @@
 import OneSignal from "react-onesignal";
-import { doc, setDoc } from "firebase/firestore";
+import { collection, doc, getDocs, query, setDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
 
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID as string | undefined;
@@ -65,7 +65,7 @@ export async function requestOneSignalPermission(
       subscriptionId,
       userId,
       name: userName,
-      active: optedIn === true,
+      active: true,
       platform: "web",
       provider: "onesignal",
       userAgent,
@@ -74,6 +74,34 @@ export async function requestOneSignalPermission(
       createdAt: now,
       updatedAt: now,
     };
+
+    // Desativa todas as subscriptions anteriores do mesmo usuário
+    const deactivateAt = new Date().toISOString();
+    const globalQuery = query(
+      collection(db, "oneSignalSubscriptions"),
+      where("userId", "==", userId),
+      where("provider", "==", "onesignal")
+    );
+    const globalSnap = await getDocs(globalQuery);
+    const batch = writeBatch(db);
+    globalSnap.forEach((snap) => {
+      if (snap.id !== subscriptionId) {
+        batch.update(snap.ref, { active: false, updatedAt: deactivateAt });
+      }
+    });
+
+    const userQuery = query(
+      collection(db, "users", userId, "oneSignalSubscriptions"),
+      where("provider", "==", "onesignal")
+    );
+    const userSnap = await getDocs(userQuery);
+    userSnap.forEach((snap) => {
+      if (snap.id !== subscriptionId) {
+        batch.update(snap.ref, { active: false, updatedAt: deactivateAt });
+      }
+    });
+
+    await batch.commit();
 
     await Promise.all([
       setDoc(doc(db, "oneSignalSubscriptions", subscriptionId), payload, { merge: true }),
